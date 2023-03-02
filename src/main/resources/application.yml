@@ -4,3 +4,20 @@ spring:
     url: r2dbc:postgresql://localhost:5432/recipe
     username: grego
     password: springboot
+
+logging:
+  file:
+    name: logs/spring-boot-react-recipeservice.log
+  level:
+    org:
+      hibernate:
+        SQL: DEBUG
+        type:
+          descriptor:
+            sql:
+              BasicBinder: TRACE
+      springframework:
+        jdbc:
+          core:
+            JdbcTemplate: DEBUG
+            StatementCreatorUtils: TRACE

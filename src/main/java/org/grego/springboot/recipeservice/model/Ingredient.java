@@ -1,9 +1,5 @@
 package org.grego.springboot.recipeservice.model;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
@@ -20,44 +16,46 @@ import org.springframework.data.annotation.Id;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
-@Table(name = "ingredients")
+@Table(name = Ingredient.INGREDIENTS_TABLE_NAME)
 public class Ingredient {
 
+    public static final String INGREDIENTS_TABLE_NAME = "ingredients";
+    public static final String INGREDIENT_ID_COLUMN_NAME = "ingredient_id";
+    public static final String INGREDIENT_COLUMN_NAME = "ingredient";
+    public static final String INGREDIENT_NUMBER_COLUMN_NAME = "ingredient_number";
+    public static final String QUANTITY_SPECIFIER_COLUMN_NAME = "quantity_specifier";
+    public static final String QUANTITY_COLUMN_NAME = "quantity";
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ingredient_id")
+    @Column(name = INGREDIENT_ID_COLUMN_NAME)
     private Long ingredientId;
 
-    @Column(name = "ingredient_number", columnDefinition="INT CONSTRAINT positive_ingredient_number CHECK (ingredient_number > 0)")
+    @Column(name = INGREDIENT_NUMBER_COLUMN_NAME, columnDefinition="INT CONSTRAINT positive_ingredient_number CHECK (ingredient_number > 0)")
     private int ingredientNumber;
 
-    @Column(name = "quantity_specifier")
+    @Column(name = QUANTITY_SPECIFIER_COLUMN_NAME)
     @Enumerated(EnumType.STRING)
     @NotNull
     private QuantitySpecifier quantitySpecifier;
 
-    @Column(name = "quantity")
+    @Column(name = QUANTITY_COLUMN_NAME)
     @NotNull
     private Double quantity;
 
-    @Column(name = "ingredient", length=256)
+    @Column(name = INGREDIENT_COLUMN_NAME, length=256)
     @NotNull
     private String ingredient;
-
-//    @ManyToOne(cascade = {CascadeType.ALL})
-//    @JoinColumn(name = "recipe_id")
-//    private Recipe recipe;
 
     public static Ingredient fromRow(Map<String, Object> row) {
         if (row.get("ingredient_id") != null) {
             var quantity = row.get("quantity");
             return Ingredient.builder()
-                    .ingredientId((Long.parseLong(row.get("ingredient_id").toString())))
-                    .ingredientNumber(Integer.parseInt(row.get("ingredient_number").toString()))
-                    .quantitySpecifier(QuantitySpecifier.valueOf((String) row.get("quantity_specifier")))
-                    .quantity(Double.parseDouble(row.get("quantity").toString()))
-                    .ingredient((String) row.get("ingredient"))
-                    .build();
+                .ingredientId((Long.parseLong(row.get("ingredient_id").toString())))
+                .ingredientNumber(Integer.parseInt(row.get("ingredient_number").toString()))
+                .quantitySpecifier(QuantitySpecifier.valueOf((String) row.get("quantity_specifier")))
+                .quantity(Double.parseDouble(row.get("quantity").toString()))
+                .ingredient((String) row.get("ingredient"))
+                .build();
         } else {
             return null;
         }

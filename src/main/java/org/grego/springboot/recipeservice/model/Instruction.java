@@ -1,12 +1,12 @@
 package org.grego.springboot.recipeservice.model;
 
+import java.util.Map;
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 
 import lombok.*;
 
-import java.math.BigDecimal;
-import java.util.Map;
+import org.springframework.data.annotation.Id;
 
 @Data
 @Builder
@@ -15,31 +15,31 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
-@Table(name = "instructions")
+@Table(name = Instruction.INSTRUCTIONS_TABLE_NAME)
 public class Instruction {
+    public static final String INSTRUCTIONS_TABLE_NAME = "instructions";
+    public static final String INSTRUCTION_ID_COLUMN_NAME = "instruction_id";
+    public static final String INSTRUCTION_COLUMN_NAME = "instruction";
+    public static final String INSTRUCTION_NUMBER_COLUMN_NAME = "instruction_number";
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "instruction_id")
+    @Column(name = INSTRUCTION_ID_COLUMN_NAME)
     private Long instructionId;
 
-    @Column(name = "instruction_number", columnDefinition="INT CONSTRAINT positive_instruction_number CHECK (instruction_number > 0)")
+    @Column(name = INSTRUCTION_NUMBER_COLUMN_NAME, columnDefinition="INT CONSTRAINT positive_instruction_number CHECK (instruction_number > 0)")
     private int instructionNumber;
 
-    @Column(name = "instruction")
+    @Column(name = INSTRUCTION_COLUMN_NAME)
     @NotNull
     private String instruction;
-
-//    @ManyToOne(cascade = {CascadeType.ALL})
-//    @JoinColumn(name = "recipe_id")
-//    private Recipe recipe;
 
     public static Instruction fromRow(Map<String, Object> row) {
         if (row.get("instruction_id") != null) {
             return Instruction.builder()
-                    .instructionId((Long.parseLong(row.get("instruction_id").toString())))
-                    .instructionNumber(Integer.parseInt(row.get("instruction_number").toString()))
-                    .instruction((String) row.get("instruction"))
-                    .build();
+                .instructionId((Long.parseLong(row.get("instruction_id").toString())))
+                .instructionNumber(Integer.parseInt(row.get("instruction_number").toString()))
+                .instruction((String) row.get("instruction"))
+                .build();
         } else {
             return null;
         }
