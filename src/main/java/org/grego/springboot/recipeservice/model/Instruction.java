@@ -26,7 +26,8 @@ public class Instruction {
     @Column(name = INSTRUCTION_ID_COLUMN_NAME)
     private Long instructionId;
 
-    @Column(name = INSTRUCTION_NUMBER_COLUMN_NAME, columnDefinition="INT CONSTRAINT positive_instruction_number CHECK (instruction_number > 0)")
+    @Column(name = INSTRUCTION_NUMBER_COLUMN_NAME,
+            columnDefinition="INT CONSTRAINT positive_instruction_number CHECK (instruction_number > 0)")
     private int instructionNumber;
 
     @Column(name = INSTRUCTION_COLUMN_NAME)

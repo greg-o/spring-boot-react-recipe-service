@@ -1,12 +1,11 @@
 package org.grego.springboot.recipeservice.model;
 
-import java.util.Map;
+import lombok.*;
+import org.springframework.data.annotation.Id;
+
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
-
-import lombok.*;
-
-import org.springframework.data.annotation.Id;
+import java.util.Map;
 
 
 @Data
@@ -30,7 +29,8 @@ public class Ingredient {
     @Column(name = INGREDIENT_ID_COLUMN_NAME)
     private Long ingredientId;
 
-    @Column(name = INGREDIENT_NUMBER_COLUMN_NAME, columnDefinition="INT CONSTRAINT positive_ingredient_number CHECK (ingredient_number > 0)")
+    @Column(name = INGREDIENT_NUMBER_COLUMN_NAME,
+            columnDefinition = "INT CONSTRAINT positive_ingredient_number CHECK (ingredient_number > 0)")
     private int ingredientNumber;
 
     @Column(name = QUANTITY_SPECIFIER_COLUMN_NAME)
@@ -42,20 +42,19 @@ public class Ingredient {
     @NotNull
     private Double quantity;
 
-    @Column(name = INGREDIENT_COLUMN_NAME, length=256)
+    @Column(name = INGREDIENT_COLUMN_NAME, length = 256)
     @NotNull
     private String ingredient;
 
     public static Ingredient fromRow(Map<String, Object> row) {
         if (row.get("ingredient_id") != null) {
-            var quantity = row.get("quantity");
             return Ingredient.builder()
-                .ingredientId((Long.parseLong(row.get("ingredient_id").toString())))
-                .ingredientNumber(Integer.parseInt(row.get("ingredient_number").toString()))
-                .quantitySpecifier(QuantitySpecifier.valueOf((String) row.get("quantity_specifier")))
-                .quantity(Double.parseDouble(row.get("quantity").toString()))
-                .ingredient((String) row.get("ingredient"))
-                .build();
+                    .ingredientId((Long.parseLong(row.get("ingredient_id").toString())))
+                    .ingredientNumber(Integer.parseInt(row.get("ingredient_number").toString()))
+                    .quantitySpecifier(QuantitySpecifier.valueOf((String) row.get("quantity_specifier")))
+                    .quantity(Double.parseDouble(row.get("quantity").toString()))
+                    .ingredient((String) row.get("ingredient"))
+                    .build();
         } else {
             return null;
         }

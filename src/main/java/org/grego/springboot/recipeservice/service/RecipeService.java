@@ -16,6 +16,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.springframework.data.relational.core.sql.LockMode;
+import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
 
 import java.time.LocalDateTime;
@@ -50,14 +51,22 @@ public class RecipeService implements IRecipeService {
         join instructions i on i.instruction_id  = ri.instructions_instruction_id
     """;
     private static final String MATCH_RECIPE_ID = "WHERE ri.recipe_recipe_id = :recipeId";
-    private static final String INGREDIENTS_MATCHING_QUERY = String.format("%s %s", INGREDIENTS_QUERY, MATCH_RECIPE_ID);
-    private static final String INSTRUCTIONS_MATCHING_QUERY = String.format("%s %s", INSTRUCTIONS_QUERY, MATCH_RECIPE_ID);
-    private static final String INGREDIENT_IDS_MATCHING_QUERY = String.format("%s %s", INGREDIENT_IDS_QUERY, MATCH_RECIPE_ID);
-    private static final String INSTRUCTION_IDS_MATCHING_QUERY = String.format("%s %s", INSTRUCTION_IDS_QUERY, MATCH_RECIPE_ID);
-    private static final String INSERT_RECIPES_INGREDIENTS = "INSERT INTO recipes_ingredients (recipe_recipe_id, ingredients_ingredient_id) VALUES ";
-    public static final String INSERT_RECIPES_INSTRUCTIONS = "INSERT INTO recipes_instructions (recipe_recipe_id, instructions_instruction_id) VALUES ";
-    public static final String DELETE_RECIPES_INGREDIENTS = "DELETE FROM recipes_ingredients WHERE recipe_recipe_id IN (%s)";
-    public static final String DELETE_RECIPES_INSTRUCTIONS = "DELETE FROM recipes_instructions WHERE recipe_recipe_id IN (%s)";
+    private static final String INGREDIENTS_MATCHING_QUERY =
+            String.format("%s %s", INGREDIENTS_QUERY, MATCH_RECIPE_ID);
+    private static final String INSTRUCTIONS_MATCHING_QUERY =
+            String.format("%s %s", INSTRUCTIONS_QUERY, MATCH_RECIPE_ID);
+    private static final String INGREDIENT_IDS_MATCHING_QUERY =
+            String.format("%s %s", INGREDIENT_IDS_QUERY, MATCH_RECIPE_ID);
+    private static final String INSTRUCTION_IDS_MATCHING_QUERY =
+            String.format("%s %s", INSTRUCTION_IDS_QUERY, MATCH_RECIPE_ID);
+    private static final String INSERT_RECIPES_INGREDIENTS =
+            "INSERT INTO recipes_ingredients (recipe_recipe_id, ingredients_ingredient_id) VALUES ";
+    public static final String INSERT_RECIPES_INSTRUCTIONS =
+            "INSERT INTO recipes_instructions (recipe_recipe_id, instructions_instruction_id) VALUES ";
+    public static final String DELETE_RECIPES_INGREDIENTS =
+            "DELETE FROM recipes_ingredients WHERE recipe_recipe_id IN (%s)";
+    public static final String DELETE_RECIPES_INSTRUCTIONS =
+            "DELETE FROM recipes_instructions WHERE recipe_recipe_id IN (%s)";
     public static final String RECIPE_ID = "recipeId";
     public static final String DELIMITER = ", ";
     public static final String INSERT_VALUES_FORMAT = "(%d, %d)";
@@ -74,9 +83,9 @@ public class RecipeService implements IRecipeService {
     @Override
     @Transactional
     @Lock(LockMode.PESSIMISTIC_READ)
-    public Flux<Recipe> getAllRecipes() {
+    public Flux<Recipe> getAllRecipes(long startPage, int pageSize) {
 
-        return recipeRepository.findAll().flatMap(recipe ->
+        return recipeRepository.findAll(startPage, pageSize).flatMap(recipe ->
             Mono.zip(
                     Mono.just(recipe),
                     getIngredients(recipe.getRecipeId()),
@@ -87,8 +96,9 @@ public class RecipeService implements IRecipeService {
     @Override
     @Transactional
     @Lock(LockMode.PESSIMISTIC_READ)
-    public Mono<Boolean> recipeExistsById(long id) {
-        return recipeRepository.existsById(id);
+    public Mono<Long> getRecipeCount() {
+
+        return recipeRepository.countAll();
     }
 
     @Override
@@ -110,8 +120,12 @@ public class RecipeService implements IRecipeService {
         recipe.setLastModifiedDateTime(recipe.getCreationDateTime());
         orderIngredientsAndInstructions(recipe);
 
-        return recipeRepository.findAllByName(recipe.getName()).collectList().flatMap(recipesWithSameName -> {
-            var nextVariation = recipesWithSameName.stream().mapToInt(Recipe::getVariation).max().orElse(0) + 1;
+        return recipeRepository.findAllByName(recipe.getName())
+                .collectList()
+                .flatMap(recipesWithSameName -> {
+            var nextVariation = recipesWithSameName
+                    .stream()
+                    .mapToInt(Recipe::getVariation).max().orElse(0) + 1;
 
             recipe.setVariation(nextVariation);
 
@@ -134,17 +148,43 @@ public class RecipeService implements IRecipeService {
 
                 orderIngredientsAndInstructions(recipe);
 
-                var existingIngredientIds = tuple.getT2().stream().map(Ingredient::getIngredientId).collect(Collectors.toSet());
-                var updatedIngredientsIds = recipe.getIngredients().stream().map(Ingredient::getIngredientId).collect(Collectors.toSet());
-                var abandonedIngredientIds = CollectionUtils.subtract(existingIngredientIds, updatedIngredientsIds);
-                var ingredientsToUpdate = recipe.getIngredients().stream().filter(ingredient -> existingIngredientIds.contains(ingredient.getIngredientId())).collect(Collectors.toList());
-                var ingredientsToAdd = recipe.getIngredients().stream().filter(ingredient -> !existingIngredientIds.contains(ingredient.getIngredientId())).collect(Collectors.toList());
+                var existingIngredientIds = tuple.getT2()
+                        .stream()
+                        .map(Ingredient::getIngredientId)
+                        .collect(Collectors.toSet());
+                var updatedIngredientsIds = recipe.getIngredients()
+                        .stream()
+                        .map(Ingredient::getIngredientId)
+                        .collect(Collectors.toSet());
+                var abandonedIngredientIds =
+                        CollectionUtils.subtract(existingIngredientIds, updatedIngredientsIds);
+                var ingredientsToUpdate = recipe.getIngredients()
+                        .stream()
+                        .filter(ingredient -> existingIngredientIds.contains(ingredient.getIngredientId()))
+                        .collect(Collectors.toList());
+                var ingredientsToAdd = recipe.getIngredients()
+                        .stream()
+                        .filter(ingredient -> !existingIngredientIds.contains(ingredient.getIngredientId()))
+                        .collect(Collectors.toList());
 
-                var existingInstructionIds = tuple.getT3().stream().map(Instruction::getInstructionId).collect(Collectors.toSet());
-                var updatedInstructionIds = recipe.getInstructions().stream().map(Instruction::getInstructionId).collect(Collectors.toSet());
-                var abandonedInstructionIds = CollectionUtils.subtract(existingInstructionIds, updatedInstructionIds);
-                var instructionsToUpdate = recipe.getInstructions().stream().filter(instruction -> existingInstructionIds.contains(instruction.getInstructionId())).collect(Collectors.toList());
-                var instructionsToAdd = recipe.getInstructions().stream().filter(instruction -> !existingInstructionIds.contains(instruction.getInstructionId())).collect(Collectors.toList());
+                var existingInstructionIds = tuple.getT3()
+                        .stream()
+                        .map(Instruction::getInstructionId)
+                        .collect(Collectors.toSet());
+                var updatedInstructionIds = recipe.getInstructions()
+                        .stream()
+                        .map(Instruction::getInstructionId)
+                        .collect(Collectors.toSet());
+                var abandonedInstructionIds =
+                        CollectionUtils.subtract(existingInstructionIds, updatedInstructionIds);
+                var instructionsToUpdate = recipe.getInstructions()
+                        .stream()
+                        .filter(instruction -> existingInstructionIds.contains(instruction.getInstructionId()))
+                        .collect(Collectors.toList());
+                var instructionsToAdd = recipe.getInstructions()
+                        .stream()
+                        .filter(instruction -> !existingInstructionIds.contains(instruction.getInstructionId()))
+                        .collect(Collectors.toList());
 
                 return Mono.zip(
                         recipeRepository.update(recipe),
@@ -161,10 +201,10 @@ public class RecipeService implements IRecipeService {
     @Override
     @Modifying
     @Lock(LockMode.PESSIMISTIC_WRITE)
-    public Mono<Void> deleteRecipeById(long recipeId) {
+    public Mono<Long> deleteRecipeById(long recipeId) {
 
-        var deleteRecipeIngredients = String.format(DELETE_RECIPES_INGREDIENTS, Long.toString(recipeId));
-        var deleteRecipeInstructions = String.format(DELETE_RECIPES_INSTRUCTIONS, Long.toString(recipeId));
+        var deleteRecipeIngredients = String.format(DELETE_RECIPES_INGREDIENTS, recipeId);
+        var deleteRecipeInstructions = String.format(DELETE_RECIPES_INSTRUCTIONS, recipeId);
 
         return Mono.zip(getIngredientIds(recipeId),
                 getInstructionIds(recipeId)
@@ -180,7 +220,7 @@ public class RecipeService implements IRecipeService {
                     ingredientRepository.deleteAllByIds(tuple.getT1()).collectList(),
                     instructionRepository.deleteAllByIds(tuple.getT2()).collectList()
                 )
-                .then()
+                .map(Tuple2::getT1)
             );
     }
 
@@ -202,7 +242,8 @@ public class RecipeService implements IRecipeService {
             .collectList();
     }
 
-    private static Function<Tuple3<Recipe, List<Ingredient>, List<Instruction>>, Recipe> mergeRecipeWithIngredientsAndInstructions() {
+    private static Function<Tuple3<Recipe, List<Ingredient>, List<Instruction>>,
+            Recipe> mergeRecipeWithIngredientsAndInstructions() {
         return tuple -> {
             tuple.getT1().setIngredients(tuple.getT2());
             tuple.getT1().setInstructions(tuple.getT3());
@@ -226,10 +267,16 @@ public class RecipeService implements IRecipeService {
                 )
                 .flatMap(tuple -> {
                     var ingredientsQuery = INSERT_RECIPES_INGREDIENTS.concat(
-                        tuple.getT2().stream().map(ingredient -> String.format(INSERT_VALUES_FORMAT, tuple.getT1().getRecipeId(), ingredient.getIngredientId()))
+                        tuple.getT2()
+                            .stream()
+                            .map(ingredient -> String.format(INSERT_VALUES_FORMAT,
+                                    tuple.getT1().getRecipeId(), ingredient.getIngredientId()))
                             .collect(Collectors.joining(DELIMITER)));
                     var instructionsQuery = INSERT_RECIPES_INSTRUCTIONS.concat(
-                        tuple.getT3().stream().map(instruction -> String.format(INSERT_VALUES_FORMAT, tuple.getT1().getRecipeId(), instruction.getInstructionId()))
+                        tuple.getT3()
+                            .stream()
+                            .map(instruction -> String.format(INSERT_VALUES_FORMAT,
+                                    tuple.getT1().getRecipeId(), instruction.getInstructionId()))
                             .collect(Collectors.joining(DELIMITER)));
 
                     return Mono.when(
@@ -261,7 +308,11 @@ public class RecipeService implements IRecipeService {
         if (ingredientsIds.isEmpty()) {
             return Flux.empty();
         } else {
-            var deleteRecipeIngredients = String.format(DELETE_RECIPES_INGREDIENTS, ingredientsIds.stream().map(ingredientId -> ingredientId.toString()).collect(Collectors.joining(DELIMITER)));
+            var deleteRecipeIngredients = String.format(DELETE_RECIPES_INGREDIENTS,
+                    ingredientsIds
+                            .stream()
+                            .map(Object::toString)
+                            .collect(Collectors.joining(DELIMITER)));
 
             return client.sql(deleteRecipeIngredients).fetch().all()
                 .thenMany(ingredientRepository.deleteAllByIds(ingredientsIds));
@@ -272,7 +323,11 @@ public class RecipeService implements IRecipeService {
         if (instructionsIds.isEmpty()) {
             return Flux.empty();
         } else {
-            var deleteRecipeInstructions = String.format(DELETE_RECIPES_INSTRUCTIONS, instructionsIds.stream().map(instructionId -> instructionId.toString()).collect(Collectors.joining(DELIMITER)));
+            var deleteRecipeInstructions = String.format(DELETE_RECIPES_INSTRUCTIONS,
+                    instructionsIds
+                            .stream()
+                            .map(instructionId -> instructionId.toString())
+                            .collect(Collectors.joining(DELIMITER)));
 
             return client.sql(deleteRecipeInstructions).fetch().all()
                     .thenMany(instructionRepository.deleteAllByIds(instructionsIds));
@@ -302,7 +357,8 @@ public class RecipeService implements IRecipeService {
             Flux<Ingredient> savedIngredients = ingredientRepository.saveAll(ingredients);
 
             return savedIngredients.map(ingredient -> {
-                    var insertRecipeIngredients = INSERT_RECIPES_INGREDIENTS.concat(String.format(INSERT_VALUES_FORMAT, recipeId, ingredient.getIngredientId()));
+                    var insertRecipeIngredients = INSERT_RECIPES_INGREDIENTS
+                            .concat(String.format(INSERT_VALUES_FORMAT, recipeId, ingredient.getIngredientId()));
 
                     return client.sql(insertRecipeIngredients).fetch().all().then(Mono.just(ingredient));
                 }).thenMany(savedIngredients);
@@ -316,7 +372,8 @@ public class RecipeService implements IRecipeService {
             Flux<Instruction> savedInstructions = instructionRepository.saveAll(instructions);
 
             return savedInstructions.map(instruction -> {
-                    var insertRecipeInstructions = INSERT_RECIPES_INSTRUCTIONS.concat(String.format(INSERT_VALUES_FORMAT, recipeId, instruction.getInstructionId()));
+                    var insertRecipeInstructions = INSERT_RECIPES_INSTRUCTIONS
+                            .concat(String.format(INSERT_VALUES_FORMAT, recipeId, instruction.getInstructionId()));
 
                     return client.sql(insertRecipeInstructions).fetch().all().then(Mono.just(instruction));
                 }).thenMany(savedInstructions);

@@ -5,8 +5,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public interface IRecipeService {
-    Flux<Recipe> getAllRecipes();
-    Mono<Boolean> recipeExistsById(long id);
+    Flux<Recipe> getAllRecipes(long startPage, int pageSize);
+
+    Mono<Long> getRecipeCount();
 
     Mono<Recipe> getRecipeById(long id);
 
@@ -14,5 +15,5 @@ public interface IRecipeService {
 
     Mono<Recipe> updateRecipe(Recipe recipe);
 
-    Mono<Void> deleteRecipeById(long id);
+    Mono<Long> deleteRecipeById(long id);
 }

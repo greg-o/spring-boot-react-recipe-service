@@ -1,7 +1,9 @@
 package org.grego.springboot.recipeservice;
 
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.r2dbc.repository.config.EnableR2dbcRepositories;
@@ -14,6 +16,7 @@ import io.r2dbc.spi.ConnectionFactory;
 @EnableWebFlux
 @EnableR2dbcRepositories
 @SpringBootApplication
+@EnableAutoConfiguration(exclude = {WebMvcAutoConfiguration.class })
 public class SpringBootReactRecipeApp {
 
   @Bean

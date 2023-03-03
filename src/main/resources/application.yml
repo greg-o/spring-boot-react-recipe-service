@@ -21,3 +21,5 @@ logging:
           core:
             JdbcTemplate: DEBUG
             StatementCreatorUtils: TRACE
+service:
+  default_page_size: 10

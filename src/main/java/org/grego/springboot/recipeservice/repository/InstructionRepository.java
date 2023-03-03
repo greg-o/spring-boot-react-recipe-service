@@ -52,7 +52,7 @@ public class InstructionRepository {
     }
 
     public Flux<Long> deleteAllByIds(Collection<Long> instructionIdList) {
-        return Flux.concat(instructionIdList.stream().map(instructionId -> deleteById(instructionId))
+        return Flux.concat(instructionIdList.stream().map(this::deleteById)
             .collect(Collectors.toList()));
     }
 }

@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 
 import javax.persistence.*;
+import javax.persistence.Transient;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
@@ -22,7 +23,9 @@ import org.springframework.data.annotation.Version;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
-@Table(name = Recipe.RECIPES_TABLE_NAME, uniqueConstraints = {@UniqueConstraint(name = "unique_recipe_name_and_variation", columnNames = {"name", "variation"})})
+@Table(name = Recipe.RECIPES_TABLE_NAME,
+        uniqueConstraints = {@UniqueConstraint(name = "unique_recipe_name_and_variation",
+                columnNames = {"name", "variation"})})
 public class Recipe {
     public static final String RECIPES_TABLE_NAME = "recipes";
     public static final String NAME_COLUMN_NAME = "name";
@@ -61,9 +64,11 @@ public class Recipe {
     @Column(name = LAST_MODIFIED_DATE_TIME_COLUMN_NAME, columnDefinition = "TIMESTAMP", nullable = false)
     private LocalDateTime lastModifiedDateTime;
 
+    @Transient
     @ReadOnlyProperty
     private List<Ingredient> ingredients = Collections.emptyList();
 
+    @Transient
     @ReadOnlyProperty
     private List<Instruction> instructions = Collections.emptyList();
 }

@@ -54,7 +54,7 @@ public class IngredientRepository {
     }
 
     public Flux<Long> deleteAllByIds(Collection<Long> ingredientIdList) {
-        return Flux.concat(ingredientIdList.stream().map(ingredientId -> deleteById(ingredientId))
+        return Flux.concat(ingredientIdList.stream().map(this::deleteById)
             .collect(Collectors.toList()));
     }
 }
