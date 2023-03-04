@@ -1,12 +1,23 @@
 package org.grego.springboot.recipeservice.model;
 
-import lombok.*;
-import org.springframework.data.annotation.Id;
-
-import javax.persistence.*;
+import javax.persistence.Column;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import java.util.Map;
 
+import lombok.Builder;
+import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.ToString;
+import lombok.Setter;
+
+import org.springframework.data.annotation.Id;
 
 @Data
 @Builder

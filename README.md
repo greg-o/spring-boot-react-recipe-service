@@ -17,10 +17,13 @@ What's In the Box?
 Ensure you have Java 8, Docker, and Make installed.
 
 Set up Postgres Database
-CREATE DATABASE recipe WITH ENCODING 'UTF8' LC_COLLATE='English_United States' LC_CTYPE='English_United States' OWNER rolename;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO userName;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO userName;
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO userName;
+CREATE USER grego WITH PASSWORD 'springboot';
+GRANT admins TO joe;
+CREATE DATABASE recipe WITH ENCODING 'UTF8' LC_COLLATE='English_United States' LC_CTYPE='English_United States' OWNER grego;
+GRANT ALL PRIVILEGES ON recipe TO grego;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO grego;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO grego;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO grego;
 
 ## Run Spring Boot application
 ```
