@@ -1,9 +1,26 @@
-#spring.data.r2dbc.repositories.enabled=true
+application:
+  name: "spring-boot-react-recipe-service"
+  description: "An example Spring Boot app using react"
+
 spring:
   r2dbc:
     url: r2dbc:postgresql://localhost:5432/recipe
     username: grego
     password: springboot
+  data:
+    elasticsearch:
+      client:
+        reactive:
+          endpoints: ${ELASTIC_ADDRESS:localhost}:${ELASTIC_PORT:9200}
+          username: elastic
+          password: springboot
+      repositories:
+        enables: true
+      cluster-nodes: ${ELASTIC_ADDRESS:localhost}:${ELASTIC_PORT:9200}
+      cluster-name: elasticsearch
+  elasticsearch:
+    rest:
+      uris: http://localhost:9200
 
 logging:
   file:
@@ -23,16 +40,8 @@ logging:
             StatementCreatorUtils: TRACE
 service:
   default_page_size: 10
-
-
-springdoc:
-  api-docs:
-    path: /api-docs
-    enabled: true
-  show-actuator: true
-  swagger-ui:
-    enabled: false
-
+  query_read_timeout: 1000
+  query_write_timeout: 1000
 
 management:
   server:

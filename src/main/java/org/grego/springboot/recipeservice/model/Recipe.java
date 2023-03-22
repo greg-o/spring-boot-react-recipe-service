@@ -48,7 +48,7 @@ public class Recipe {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = RECIPE_ID_COLUMN_NAME)
-    private Long recipeId;
+    private long recipeId;
 
     @Size(max=256)
     @NotBlank
@@ -64,7 +64,7 @@ public class Recipe {
 
     @Version
     @Column(name = VERSION_COLUMN_NAME)
-    private long version;
+    private Long version;
 
     @CreatedDate
     @Column(name = CREATION_DATE_TIME_COLUMN_NAME, columnDefinition = "TIMESTAMP", nullable = false)

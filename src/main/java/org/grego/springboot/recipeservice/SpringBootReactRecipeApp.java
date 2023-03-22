@@ -13,9 +13,9 @@ import org.springframework.web.reactive.config.EnableWebFlux;
 
 import io.r2dbc.spi.ConnectionFactory;
 
+@SpringBootApplication
 @EnableWebFlux
 @EnableR2dbcRepositories
-@SpringBootApplication
 @EnableAutoConfiguration(exclude = {WebMvcAutoConfiguration.class })
 public class SpringBootReactRecipeApp {
 
@@ -32,5 +32,4 @@ public class SpringBootReactRecipeApp {
   public static void main(String[] args) {
     SpringApplication.run(SpringBootReactRecipeApp.class, args);
   }
-
 }

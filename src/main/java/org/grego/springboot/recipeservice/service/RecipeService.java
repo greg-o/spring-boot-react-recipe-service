@@ -2,6 +2,7 @@ package org.grego.springboot.recipeservice.service;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
+import org.grego.springboot.recipeservice.document.RecipeDoc;
 import org.grego.springboot.recipeservice.model.Ingredient;
 import org.grego.springboot.recipeservice.model.Instruction;
 import org.grego.springboot.recipeservice.model.Recipe;
@@ -78,6 +79,8 @@ public class RecipeService implements IRecipeService {
     @Autowired
     private InstructionRepository instructionRepository;
     @Autowired
+    private ElasticSearchRepository elasticSearchRepository;
+    @Autowired
     private DatabaseClient client;
 
     @Override
@@ -129,7 +132,10 @@ public class RecipeService implements IRecipeService {
 
             recipe.setVariation(nextVariation);
 
-            return saveRecipe(recipe);
+            return saveRecipe(recipe).flatMap(savedRecipe -> {
+                return elasticSearchRepository.save(RecipeDoc.create(savedRecipe))
+                        .then(Mono.just(savedRecipe));
+            });
         });
     }
 
@@ -194,7 +200,7 @@ public class RecipeService implements IRecipeService {
                         updateInstructions(instructionsToUpdate).collectList(),
                         saveIngredients(recipe.getRecipeId(), ingredientsToAdd).collectList(),
                         saveInstructions(recipe.getRecipeId(), instructionsToAdd).collectList()
-                    ).then(Mono.just(recipe));
+                    ).then(elasticSearchRepository.save(RecipeDoc.create(recipe)).then(Mono.just(recipe)));
             });
     }
 
