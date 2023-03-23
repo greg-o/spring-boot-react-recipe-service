@@ -16,11 +16,9 @@ spring:
           password: springboot
       repositories:
         enables: true
-      cluster-nodes: ${ELASTIC_ADDRESS:localhost}:${ELASTIC_PORT:9200}
-      cluster-name: elasticsearch
   elasticsearch:
     rest:
-      uris: http://localhost:9200
+      uris: https://${ELASTIC_ADDRESS:localhost}:${ELASTIC_PORT:9200}
 
 logging:
   file:

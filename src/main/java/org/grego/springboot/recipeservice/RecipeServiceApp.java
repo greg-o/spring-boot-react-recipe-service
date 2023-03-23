@@ -17,7 +17,7 @@ import io.r2dbc.spi.ConnectionFactory;
 @EnableWebFlux
 @EnableR2dbcRepositories
 @EnableAutoConfiguration(exclude = {WebMvcAutoConfiguration.class })
-public class SpringBootReactRecipeApp {
+public class RecipeServiceApp {
 
   @Bean
   ConnectionFactoryInitializer initializer(ConnectionFactory connectionFactory) {
@@ -30,6 +30,6 @@ public class SpringBootReactRecipeApp {
   }
 
   public static void main(String[] args) {
-    SpringApplication.run(SpringBootReactRecipeApp.class, args);
+    SpringApplication.run(RecipeServiceApp.class, args);
   }
 }

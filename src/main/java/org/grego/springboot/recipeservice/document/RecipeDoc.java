@@ -1,6 +1,5 @@
 package org.grego.springboot.recipeservice.document;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
 import org.grego.springboot.recipeservice.model.Ingredient;
 import org.grego.springboot.recipeservice.model.Instruction;
@@ -11,10 +10,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
-import org.springframework.data.elasticsearch.annotations.DateFormat;
 import org.springframework.data.elasticsearch.annotations.Document;
-import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldType;
 
 @Builder
 @Getter
@@ -34,12 +30,8 @@ public class RecipeDoc {
 
     private Long version;
 
-    @Field(type = FieldType.Date, format = {DateFormat.date_hour_minute_second_fraction})
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "uuuu-MM-dd'T'HH:mm:ss.SSS")
     private Date creationDateTime;
 
-    @Field(type = FieldType.Date, format = {DateFormat.date_hour_minute_second_fraction})
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "uuuu-MM-dd'T'HH:mm:ss.SSS")
     private Date lastModifiedDateTime;
 
     private List<Ingredient> ingredients = Collections.emptyList();

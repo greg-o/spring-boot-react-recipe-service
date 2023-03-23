@@ -5,6 +5,6 @@ import org.springframework.data.elasticsearch.repository.ReactiveElasticsearchRe
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface ElasticSearchRepository extends ReactiveElasticsearchRepository<RecipeDoc, Long> {
+public interface RecipeSearchRepository extends ReactiveElasticsearchRepository<RecipeDoc, Long> {
 
 }

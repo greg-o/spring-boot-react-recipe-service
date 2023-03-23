@@ -34,7 +34,7 @@ public class ElasticsearchConfig {
             ClientConfiguration
                 .builder()
                 .connectedTo(endpoints)
-//                .usingSsl()
+                .usingSsl()
                 .withBasicAuth(username, password)
                 .withDefaultHeaders(compatibilityHeaders)
                 .build();

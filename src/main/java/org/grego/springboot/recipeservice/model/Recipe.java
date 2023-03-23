@@ -10,6 +10,7 @@ import javax.persistence.GenerationType;
 import javax.persistence.Table;
 import javax.persistence.Transient;
 import javax.persistence.UniqueConstraint;
+import javax.persistence.Version;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
@@ -24,7 +25,6 @@ import lombok.Setter;
 
 import org.springframework.data.annotation.*;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Version;
 
 @Data
 @Builder
