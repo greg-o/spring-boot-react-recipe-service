@@ -12,6 +12,8 @@ import org.springframework.data.elasticsearch.core.mapping.SimpleElasticsearchMa
 import org.springframework.data.elasticsearch.repository.config.EnableElasticsearchRepositories;
 import org.springframework.data.elasticsearch.support.HttpHeaders;
 
+import java.time.Duration;
+
 @Configuration
 @EnableElasticsearchRepositories(basePackages = "org.grego.springboot.recipeservice.repository")
 public class ElasticsearchConfig {
@@ -35,6 +37,8 @@ public class ElasticsearchConfig {
                 .builder()
                 .connectedTo(endpoints)
                 .usingSsl()
+                .withConnectTimeout(Duration.ofSeconds(5))
+                .withSocketTimeout(Duration.ofSeconds(3))
                 .withBasicAuth(username, password)
                 .withDefaultHeaders(compatibilityHeaders)
                 .build();

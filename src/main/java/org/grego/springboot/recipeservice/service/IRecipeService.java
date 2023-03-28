@@ -1,5 +1,7 @@
 package org.grego.springboot.recipeservice.service;
 
+import co.elastic.clients.elasticsearch.core.search.ResponseBody;
+import org.grego.springboot.recipeservice.document.RecipeDoc;
 import org.grego.springboot.recipeservice.model.Recipe;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -16,4 +18,6 @@ public interface IRecipeService {
     Mono<Recipe> updateRecipe(Recipe recipe);
 
     Mono<Long> deleteRecipeById(long id);
+
+    Mono<ResponseBody<RecipeDoc>> searchRecipes(String searchString);
 }

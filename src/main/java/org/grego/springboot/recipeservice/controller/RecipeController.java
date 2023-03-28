@@ -1,8 +1,12 @@
 package org.grego.springboot.recipeservice.controller;
 
+import co.elastic.clients.elasticsearch.core.search.ResponseBody;
+import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
+import jakarta.json.stream.JsonGenerator;
+import org.grego.springboot.recipeservice.document.RecipeDoc;
 import org.grego.springboot.recipeservice.model.Recipe;
 import org.grego.springboot.recipeservice.service.IRecipeService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +15,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
+
+import java.io.IOException;
+import java.io.StringWriter;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
 
@@ -113,6 +120,30 @@ public class RecipeController {
     public Mono<ResponseEntity<?>> deleteRecipe(@PathVariable("id") long id) {
         return recipeService.deleteRecipeById(id)
             .map(recipeId -> ResponseEntity.ok(String.format("Deleted recipe %d", recipeId)));
+    }
+
+    @Timed
+    @GetMapping(path = "/search",
+            produces = {
+                    org.springframework.http.MediaType.APPLICATION_JSON_VALUE
+            }
+    )
+    public Mono<ResponseEntity<?>> searchRecipes(
+            @RequestParam(value = "search-string", required = true)
+            String searchString) {
+
+        return recipeService.searchRecipes(searchString).map(results -> {
+            StringWriter writer = new StringWriter();
+            JacksonJsonpMapper jacksonJsonpMapper = new JacksonJsonpMapper(objectMapper);
+
+            try (JsonGenerator generator = jacksonJsonpMapper.jsonProvider().createGenerator(writer)) {
+                results.serialize(generator, jacksonJsonpMapper);
+            }
+
+            return ResponseEntity.ok()
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body(writer.toString());
+        });
     }
 
     private Mono<ResponseEntity<?>> listRecipesWithHyperLinks(Long pageNumber, Integer pageSize) {

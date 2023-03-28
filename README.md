@@ -56,4 +56,9 @@ Update recipe:
 ```bash
 curl -X PATCH http://localhost:8080/recipes/update -d '{"recipeId":1,"name":"chili","description":"homemade","ingredients":[{"recipeId":1,"ingredientNumber":1,"quantitySpecifier":"Cup","quantity":1.0,"ingredient":"beer"}],"instructions":[{"recipeId":1,"instructionNumber":1,"instruction":"add beer"}]}' -H "Content-Type: application/json"
 ```
+
+Search for recipes
+```bash
+curl "http://localhost:8080/recipes/search?search-string=tea"
+```
 Elastisearch:  http://localhost:9200/

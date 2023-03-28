@@ -9,8 +9,12 @@ import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Document;
+import org.springframework.data.elasticsearch.annotations.Field;
+import org.springframework.data.elasticsearch.annotations.FieldType;
 
 @Builder
 @Getter
@@ -19,7 +23,8 @@ import org.springframework.data.elasticsearch.annotations.Document;
 @AllArgsConstructor
 @ToString
 @Document(indexName = "recipes")
-public class RecipeDoc {
+public class RecipeDoc extends ElasticsearchDoc {
+    @Id
     private Long id;
 
     private String name;
@@ -28,15 +33,15 @@ public class RecipeDoc {
 
     private String description;
 
-    private Long version;
-
     private Date creationDateTime;
 
     private Date lastModifiedDateTime;
 
-    private List<Ingredient> ingredients = Collections.emptyList();
+    @Field(type = FieldType.Nested, includeInParent = true)
+    private List<IngredientDoc> ingredients = Collections.emptyList();
 
-    private List<Instruction> instructions = Collections.emptyList();
+    @Field(type = FieldType.Nested, includeInParent = true)
+    private List<InstructionDoc> instructions = Collections.emptyList();
 
     public static RecipeDoc create(Recipe recipe) {
         return RecipeDoc.builder()
@@ -46,8 +51,8 @@ public class RecipeDoc {
                 .description(recipe.getDescription())
                 .creationDateTime(Date.from(recipe.getCreationDateTime().toInstant(ZoneOffset.UTC)))
                 .lastModifiedDateTime(Date.from(recipe.getLastModifiedDateTime().toInstant(ZoneOffset.UTC)))
-                .ingredients(recipe.getIngredients())
-                .instructions(recipe.getInstructions())
+                .ingredients(recipe.getIngredients().stream().map(IngredientDoc::create).collect(Collectors.toList()))
+                .instructions(recipe.getInstructions().stream().map(InstructionDoc::create).collect(Collectors.toList()))
                 .build();
     }
 }

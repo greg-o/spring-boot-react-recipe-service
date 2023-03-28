@@ -1,5 +1,12 @@
 package org.grego.springboot.recipeservice.service;
 
+import co.elastic.clients.elasticsearch._types.query_dsl.FuzzyQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.MatchQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryStringQuery;
+import co.elastic.clients.elasticsearch.core.SearchRequest;
+import co.elastic.clients.elasticsearch.core.search.ResponseBody;
+import co.elastic.clients.util.ObjectBuilder;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.grego.springboot.recipeservice.document.RecipeDoc;
@@ -8,6 +15,9 @@ import org.grego.springboot.recipeservice.model.Instruction;
 import org.grego.springboot.recipeservice.model.Recipe;
 import org.grego.springboot.recipeservice.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient;
+import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.r2dbc.repository.Modifying;
 import org.springframework.data.relational.repository.Lock;
 import org.springframework.r2dbc.core.DatabaseClient;
@@ -79,9 +89,15 @@ public class RecipeService implements IRecipeService {
     @Autowired
     private InstructionRepository instructionRepository;
     @Autowired
-    private RecipeSearchRepository elasticSearchRepository;
+    private RecipeSearchRepository recipeSearchRepository;
     @Autowired
     private DatabaseClient client;
+
+    @Autowired
+    ReactiveElasticsearchOperations elasticsearchOperations;
+
+    @Autowired
+    ReactiveElasticsearchClient elasticsearchClient;
 
     @Override
     @Transactional
@@ -132,7 +148,7 @@ public class RecipeService implements IRecipeService {
             recipe.setVariation(nextVariation);
 
             return saveRecipe(recipe).flatMap(savedRecipe ->
-                elasticSearchRepository.save(RecipeDoc.create(savedRecipe))
+                recipeSearchRepository.save(RecipeDoc.create(savedRecipe))
                     .then(Mono.just(savedRecipe)));
         });
     }
@@ -198,7 +214,7 @@ public class RecipeService implements IRecipeService {
                     updateInstructions(instructionsToUpdate).collectList(),
                     saveIngredients(recipe.getRecipeId(), ingredientsToAdd).collectList(),
                     saveInstructions(recipe.getRecipeId(), instructionsToAdd).collectList()
-                ).then(elasticSearchRepository.save(RecipeDoc.create(recipe)).then(Mono.just(recipe)));
+                ).then(recipeSearchRepository.save(RecipeDoc.create(recipe)).then(Mono.just(recipe)));
             });
     }
 
@@ -222,10 +238,27 @@ public class RecipeService implements IRecipeService {
                 Mono.zip(
                     recipeRepository.deleteById(recipeId),
                     ingredientRepository.deleteAllByIds(tuple.getT1()).collectList(),
-                    instructionRepository.deleteAllByIds(tuple.getT2()).collectList()
+                    instructionRepository.deleteAllByIds(tuple.getT2()).collectList(),
+                    recipeSearchRepository.deleteById(recipeId)
                 )
                 .map(Tuple2::getT1)
             );
+    }
+
+    @Override
+    public Mono<ResponseBody<RecipeDoc>> searchRecipes(String searchText) {
+        QueryStringQuery queryString = new QueryStringQuery.Builder()
+                .query(searchText)
+                .build();
+        Query query = new Query.Builder()
+                .queryString(queryString)
+                .build();
+        SearchRequest searchRequest = new SearchRequest.Builder()
+                .index("recipes")
+                .query(query)
+                .explain(true)
+                .build();
+        return elasticsearchClient.search(searchRequest, RecipeDoc.class);
     }
 
     private Mono<List<Ingredient>> getIngredients(long recipeId) {
