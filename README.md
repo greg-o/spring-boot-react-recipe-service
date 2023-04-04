@@ -61,4 +61,4 @@ Search for recipes
 ```bash
 curl "http://localhost:8080/recipes/search?search-string=tea"
 ```
-Elastisearch:  http://localhost:9200/
+Elasticsearch:  http://localhost:9200/
