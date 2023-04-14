@@ -33,9 +33,9 @@ spring:
     elasticsearch:
       client:
         reactive:
-          endpoints: ${ELASTIC_ADDRESS:localhost}:${ELASTIC_PORT:9200}
+          endpoints: localhost:${elasticsearch.port}
           username: elastic
-          password: springboot
+          password: ${elasticsearch.password}
       repositories:
         enables: true
     jdbc:
@@ -43,7 +43,7 @@ spring:
         enabled=false:
   elasticsearch:
     rest:
-      uris: https://${ELASTIC_ADDRESS:localhost}:${ELASTIC_PORT:9200}
+      uris: https://localhost:${elasticsearch.port}
 logging:
   file:
     name: logs/spring-boot-scala-recipeservice-test.log

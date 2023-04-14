@@ -60,6 +60,19 @@ public class RecipeController {
     private ObjectMapper objectMapper;
 
     /**
+     * Constructor to build RecipeController to set class variables.
+     * @param service
+     * @param resourceAssembler
+     * @param mapper
+     */
+    public RecipeController(final IRecipeService service, final RecipeResourceAssembler resourceAssembler,
+                            final ObjectMapper mapper) {
+        this.recipeService = service;
+        this.recipeResourceAssembler = resourceAssembler;
+        this.objectMapper = mapper;
+    }
+
+    /**
      * Retrieve a list of recipes.
      * @param pageNumber
      * @param pageSize
