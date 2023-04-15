@@ -25,6 +25,7 @@
         <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
         <jackson-databind.version>2.14.1</jackson-databind.version>
         <java.version>17</java.version>
+        <javafx-base.version>20</javafx-base.version>
         <javax.persistence-api.version>2.2</javax.persistence-api.version>
         <javax.ws.rs-api.version>2.1.1</javax.ws.rs-api.version>
         <jsonassert.version>1.5.1</jsonassert.version>
@@ -41,6 +42,13 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-base</artifactId>
+            <version>${javafx-base.version}</version>
+            <type>pom</type>
+        </dependency>
+
         <dependency>
             <groupId>javax.persistence</groupId>
             <artifactId>javax.persistence-api</artifactId>

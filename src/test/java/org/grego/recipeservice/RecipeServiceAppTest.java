@@ -12,6 +12,7 @@ import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.spi.json.JsonProvider;
 import net.minidev.json.JSONArray;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.commons.text.StringSubstitutor;
 import org.apache.http.client.utils.URIBuilder;
@@ -33,12 +34,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.RequestEntity;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.shaded.org.apache.commons.io.IOUtils;
 import org.testcontainers.utility.DockerImageName;
 
@@ -59,9 +57,12 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import javafx.util.Pair;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -72,10 +73,8 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 @SpringBootTest(properties = "spring.main.web-application-type=reactive",
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles(RecipeServiceAppTest.PROFILE)
-@TestPropertySource(locations = {"classpath:application-test.yml"})
 @Tag("IntegrationTests")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@Testcontainers
 class RecipeServiceAppTest {
     /**
      * The profile for testing.
@@ -90,7 +89,7 @@ class RecipeServiceAppTest {
     /**
      * The password for the keystore.
      */
-    private static final String KEYSTORE_PASSWORD = "springboot";
+    private static final String KEYSTORE_PASSWORD = RandomStringUtils.random(10, true, true);
 
     /**
      * Elasticsearch default username, when secured.
@@ -100,12 +99,34 @@ class RecipeServiceAppTest {
     /**
      * Elasticsearch password.
      */
-    private static final String ELASTICSEARCH_PASSWORD = "es_password";
+    private static final String ELASTICSEARCH_PASSWORD = RandomStringUtils.random(10, true, true);
 
     /**
      * Elasticsearch port.
      */
     private static final int ELASTICSEARCH_PORT = 9200;
+
+    /**
+     * Parameter used to specify whether to include hyper-links.
+     */
+    private static final String INCLUDE_HYPER_LINKS_PARAM = "include-hyper-links";
+
+    /**
+     * Parameter use to specify the search string.
+     */
+    private static final String SEARCH_STRING_PARAM = "search-string";
+
+    /**
+     * The version of Elasticsearch.
+     */
+    private static final String ELASTICSEARCH_VERSION = "8.6.2";
+
+    /**
+     * The docker image for Elasticsearch.
+     */
+    private static final String ELASTICSEARCH_IMAGE =
+            String.format("docker.elastic.co/elasticsearch/elasticsearch:%s-%s", ELASTICSEARCH_VERSION,
+                    SystemUtils.OS_ARCH.equals("aarch64") ? "arm64" : "amd64");
 
     /**
      * The port that the RecipeServiceApp is using during tests.
@@ -139,10 +160,15 @@ class RecipeServiceAppTest {
     private JsonProvider jsonPath = Configuration.defaultConfiguration().jsonProvider();
 
     /**
+     * The name of the recipe.
+     */
+    private static final String RECIPE_NAME = "Test";
+
+    /**
      * Recipe used for testing.
      */
     private final Recipe recipe = Recipe.builder()
-            .name("Test")
+            .name(RECIPE_NAME)
             .description("Test recipe")
             .ingredients(Arrays.asList(Ingredient.builder().
                     ingredient("something")
@@ -153,69 +179,26 @@ class RecipeServiceAppTest {
     /**
      * Container to run test instance of Elasticsearch.
      */
-    @Container
-    private ElasticsearchContainer elasticsearchContainer = new ElasticsearchContainer(new DockerImageName(ELASTICSEARCH_IMAGE))
-            .withEnv("cluster.name", "integration-test-cluster")
-            .withPassword(ELASTICSEARCH_PASSWORD);
-
-    /**
-     * Parameter used to specify whether to include hyper-links.
-     */
-    private static final String INCLUDE_HYPER_LINKS_PARAM = "include-hyper-links";
-
-    /**
-     * The version of Elasticsearch.
-     */
-    private static final String ELASTICSEARCH_VERSION = "8.6.2";
-
-    /**
-     * The docker image for Elasticsearch.
-     */
-    private static final String ELASTICSEARCH_IMAGE =
-            String.format("docker.elastic.co/elasticsearch/elasticsearch:%s-%s", ELASTICSEARCH_VERSION,
-                    SystemUtils.OS_ARCH.equals("aarch64") ? "arm64" : "amd64");
+    private ElasticsearchContainer elasticsearchContainer;
 
     RecipeServiceAppTest() throws IOException, URISyntaxException, KeyStoreException,
             CertificateException, NoSuchAlgorithmException {
+        elasticsearchContainer = new ElasticsearchContainer(new DockerImageName(ELASTICSEARCH_IMAGE))
+                .withEnv("cluster.name", "integration-test-cluster")
+                .withPassword(ELASTICSEARCH_PASSWORD);
+
         elasticsearchContainer.start();
+        var configurationMapping = Map.of(
+                "elasticsearch.port", elasticsearchContainer.getMappedPort(ELASTICSEARCH_PORT),
+                "elasticsearch.password", ELASTICSEARCH_PASSWORD
+        );
 
-        var port = elasticsearchContainer.getMappedPort(ELASTICSEARCH_PORT);
+        writeConfigurationYmlFile(configurationMapping);
 
-        try (InputStream inputStream = this.getClass().getClassLoader()
-                .getResourceAsStream(CONFIGURATION_YML_FILE + ".ftl")) {
-            String templateString = IOUtils.toString(inputStream);
-            var mapping = Map.of(
-                    "elasticsearch.port", port,
-                    "elasticsearch.password", ELASTICSEARCH_PASSWORD
-            );
-            StringSubstitutor substitutor = new StringSubstitutor(mapping);
-            String resolvedString = substitutor.replace(templateString);
-            Files.write(Paths.get(getResourcePath(), CONFIGURATION_YML_FILE), resolvedString.getBytes());
-        }
+        List<Pair<String, Certificate>> certificates = new ArrayList<Pair<String, Certificate>>();
 
-        var caCerts = elasticsearchContainer.caCertAsBytes();
-        if (caCerts.isPresent()) {
-
-            KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-            keyStore.load(null); //Make an empty store
-            var  keyStoreFile = Paths.get(getResourcePath().toString(), "keystore.jks").toFile();
-            InputStream fis = new ByteArrayInputStream(caCerts.get());
-            BufferedInputStream bis = new BufferedInputStream(fis);
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-
-            while (bis.available() > 0) {
-                Certificate cert = cf.generateCertificate(bis);
-                String alias = "Elasticsearch" + bis.available();
-                keyStore.setCertificateEntry(alias, cert);
-            }
-
-            try (FileOutputStream stream = new FileOutputStream(keyStoreFile)) {
-                keyStore.store(stream, KEYSTORE_PASSWORD.toCharArray());
-            }
-
-            System.setProperty("javax.net.ssl.trustStore", keyStoreFile.getAbsolutePath());
-            System.setProperty("javax.net.ssl.trustStorePassword", KEYSTORE_PASSWORD);
-        }
+        addElasticsearchCertificate(certificates, elasticsearchContainer);
+        createKeyStore(certificates);
 
 //        var client =
 //                RestClient
@@ -237,21 +220,23 @@ class RecipeServiceAppTest {
 
     @Test
     public void testListRecipes() throws JSONException, URISyntaxException, MalformedURLException {
-        var listRecipes = new URIBuilder("http://localhost")
-            .setPort(recipeServicePort)
-            .setPath("recipes/list")
-            .addParameter(INCLUDE_HYPER_LINKS_PARAM, "true")
-            .build().toString();
-        var addRecipe = new URIBuilder("http://localhost")
-                .setPort(recipeServicePort)
-                .setPath("recipes/add")
-                .build().toString();
+        Integer recipeId = -1;
+        try {
+            var listRecipes = new URIBuilder("http://localhost")
+                    .setPort(recipeServicePort)
+                    .setPath("recipes/list")
+                    .addParameter(INCLUDE_HYPER_LINKS_PARAM, "true")
+                    .build().toString();
+            var addRecipe = new URIBuilder("http://localhost")
+                    .setPort(recipeServicePort)
+                    .setPath("recipes/add")
+                    .build().toString();
 
-        verifyListRecipesSize(0);
+            verifyListRecipesSize(0);
 
-        var listRecipesWithHyperLinksResponse =
-                restTemplate.exchange(RequestEntity.get(listRecipes).build(), String.class);
-        var recipeListJson = jsonPath.parse(listRecipesWithHyperLinksResponse.getBody());
+            var listRecipesWithHyperLinksResponse =
+                    restTemplate.exchange(RequestEntity.get(listRecipes).build(), String.class);
+            var recipeListJson = jsonPath.parse(listRecipesWithHyperLinksResponse.getBody());
 //        var addRecipeUrl =
 //                (String) ((JSONArray) JsonPath.read(recipeListJson, "$.actions[?(@.method == 'PUT')].href")).get(0);
 //
@@ -259,439 +244,512 @@ class RecipeServiceAppTest {
 //                "$.links[*].href")).get(0));
 //        assertTrue(addRecipeUrl.contains(INCLUDE_HYPER_LINKS_PARAM + "=false"));
 
-        var addRecipeResponse =
-                restTemplate.exchange(RequestEntity.put(addRecipe).accept(MediaType.APPLICATION_JSON).body(recipe),
-                        String.class);
+            var addRecipeResponse =
+                    restTemplate.exchange(RequestEntity.put(addRecipe).accept(MediaType.APPLICATION_JSON).body(recipe),
+                            String.class);
 
-        assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
-        verifyListRecipesSize(1);
+            assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
+            verifyListRecipesSize(1);
 
-        var addRecipeJson = jsonPath.parse(addRecipeResponse.getBody());
-        var recipeId = (Integer) JsonPath.read(addRecipeJson, "$.recipeId");
-        assertNotNull(recipeId);
+            var addRecipeJson = jsonPath.parse(addRecipeResponse.getBody());
+            recipeId = (Integer) JsonPath.read(addRecipeJson, "$.recipeId");
+            assertNotNull(recipeId);
+        } finally {
+            if (recipeId != -1) {
+                var deleteRecipeResponse =
+                        restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
+                                recipeServicePort, recipeId)).build(), String.class);
 
-        var deleteRecipeResponse =
-                restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
-                        recipeServicePort, recipeId)).build(), String.class);
+                assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
 
-        assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
-
-        verifyListRecipesSize(0);
+                verifyListRecipesSize(0);
+            }
+        }
     }
 
     @Test
     public void testAddRecipeWithoutHyperlinks() throws JSONException, URISyntaxException, JsonProcessingException {
-        var addRecipe = new URIBuilder("http://localhost")
-                .setPort(recipeServicePort)
-                .setPath("recipes/add")
-                .build().toString();
+        Integer recipeId = -1;
 
-        verifyListRecipesSize(0);
+        try {
+            var addRecipe = new URIBuilder("http://localhost")
+                    .setPort(recipeServicePort)
+                    .setPath("recipes/add")
+                    .build().toString();
+            var searchForRecipe = new URIBuilder("http://localhost")
+                    .setPort(recipeServicePort)
+                    .setPath("recipes/search")
+                    .addParameter(SEARCH_STRING_PARAM, RECIPE_NAME)
+                    .build().toString();
 
-        var addRecipeResponse =
-                restTemplate.exchange(RequestEntity
-                                .put(addRecipe)
-                                .accept(APPLICATION_JSON)
-                                .body(objectMapper.writeValueAsString(recipe)),
-                        String.class);
+            verifyListRecipesSize(0);
 
-        assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
+            var addRecipeResponse =
+                    restTemplate.exchange(RequestEntity
+                                    .put(addRecipe)
+                                    .accept(APPLICATION_JSON)
+                                    .body(objectMapper.writeValueAsString(recipe)),
+                            String.class);
 
-        var addRecipeJson = (LinkedHashMap<String, Object>) jsonPath.parse(addRecipeResponse.getBody());
+            assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
 
-        verifyRecipe(recipe, addRecipeJson);
+            var addRecipeJson = (LinkedHashMap<String, Object>) jsonPath.parse(addRecipeResponse.getBody());
 
-        Integer recipeId = JsonPath.read(addRecipeJson, "$.recipeId");
+            verifyRecipe(recipe, addRecipeJson);
 
-        assertNotNull(recipeId);
+            recipeId = JsonPath.read(addRecipeJson, "$.recipeId");
 
-        var getRecipeResponse =
-                restTemplate.exchange(RequestEntity.get(String.format("http://localhost:%d/recipes/get/%d",
-                        recipeServicePort, recipeId)).build(), String.class);
+            assertNotNull(recipeId);
 
-        assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
-        verifyRecipe(recipe, (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody()));
+            var getRecipeResponse =
+                    restTemplate.exchange(RequestEntity.get(String.format("http://localhost:%d/recipes/get/%d",
+                            recipeServicePort, recipeId)).build(), String.class);
 
-        var deleteRecipeResponse =
-                restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
-                        recipeServicePort, recipeId)).build(), String.class);
+            assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
+            verifyRecipe(recipe, (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody()));
 
-        assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
+            var searchForRecipeResponse =
+                    restTemplate.exchange(RequestEntity.get(searchForRecipe).build(), String.class);
 
-        verifyListRecipesSize(0);
+            assertEquals(HttpStatus.OK, searchForRecipeResponse.getStatusCode());
+        } finally {
+            if (recipeId != -1) {
+                var deleteRecipeResponse =
+                        restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
+                                recipeServicePort, recipeId)).build(), String.class);
+
+                assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
+
+                verifyListRecipesSize(0);
+            }
+        }
     }
 
     @Test
     public void testAddRecipeWithHyperlinks()
             throws URISyntaxException, JSONException, JsonProcessingException, MalformedURLException {
-        var addRecipe = new URIBuilder("http://localhost")
-                .setPort(recipeServicePort)
-                .setPath("recipes/add")
-                .addParameter(INCLUDE_HYPER_LINKS_PARAM, "true")
-                .build().toString();
+        Integer recipeId = -1;
 
-        verifyListRecipesSize(0);
+        try {
+            var addRecipe = new URIBuilder("http://localhost")
+                    .setPort(recipeServicePort)
+                    .setPath("recipes/add")
+                    .addParameter(INCLUDE_HYPER_LINKS_PARAM, "true")
+                    .build().toString();
+            var searchForRecipe = new URIBuilder("http://localhost")
+                    .setPort(recipeServicePort)
+                    .setPath("recipes/search")
+                    .addParameter(SEARCH_STRING_PARAM, RECIPE_NAME)
+                    .build().toString();
 
-        var addRecipeResponse =
-                restTemplate.exchange(RequestEntity
-                        .put(addRecipe)
-                        .accept(APPLICATION_JSON)
-                        .body(objectMapper.writeValueAsString(recipe)), String.class);
+            verifyListRecipesSize(0);
 
-        assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
+            var addRecipeResponse =
+                    restTemplate.exchange(RequestEntity
+                            .put(addRecipe)
+                            .accept(APPLICATION_JSON)
+                            .body(objectMapper.writeValueAsString(recipe)), String.class);
 
-        var responseJson = (LinkedHashMap<String, Object>) jsonPath.parse(addRecipeResponse.getBody());
+            assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
 
-        verifyRecipe(recipe, responseJson);
+            var responseJson = (LinkedHashMap<String, Object>) jsonPath.parse(addRecipeResponse.getBody());
 
-        var recipeId = (Integer) JsonPath.read(responseJson, "$.recipeId");
+            verifyRecipe(recipe, responseJson);
 
-        assertNotNull(recipeId);
+            recipeId = (Integer) JsonPath.read(responseJson, "$.recipeId");
 
-        var getRecipe = new URIBuilder("http://localhost")
-                .setPort(recipeServicePort)
-                .setPath(String.format("recipes/get/%d", recipeId))
-                .build();
+            assertNotNull(recipeId);
 
-        var getRecipeResponse = restTemplate.exchange(RequestEntity.get(getRecipe.toString()).build(), String.class);
+            var getRecipe = new URIBuilder("http://localhost")
+                    .setPort(recipeServicePort)
+                    .setPath(String.format("recipes/get/%d", recipeId))
+                    .build();
 
-        assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
-        verifyRecipe(recipe, (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody()));
+            var getRecipeResponse = restTemplate.exchange(RequestEntity.get(getRecipe.toString()).build(), String.class);
 
-        var self = (String) ((JSONArray) JsonPath.read(responseJson, "$.links[?(@.rel == 'self')].href")).get(0);
-        assertTrue(self.contains(getRecipe.getPath()));
+            assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
+            verifyRecipe(recipe, (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody()));
 
-//        var updateRecipe = (String) ((JSONArray) JsonPath.read(responseJson,
-//          "$.actions[?(@.method == 'PATCH')].href")).get(0);
-//        var updatedRecipe = Recipe.builder()
-//                .name("Another test")
-//                .recipeId(recipeId.longValue())
-//                .description("Another test recipe")
-//                .ingredients(Arrays.asList(Ingredient.builder()
-//                  .ingredientId(((Integer) JsonPath.read(responseJson, "$.ingredients[0].ingredientId")).longValue())
-//                  .ingredient("something else")
-//                  .quantitySpecifier(QuantitySpecifier.Unspecified)
-//                  .quantity(0.0).build()))
-//                .instructions(Arrays.asList(Instruction.builder()
-//                  .instructionId(((Integer) JsonPath.read(responseJson,
-//                      "$.instructions[0].instructionId")).longValue())
-//                  .instruction("Do something else").build()))
-//                .build();
+            var self = (String) ((JSONArray) JsonPath.read(responseJson, "$.links[?(@.rel == 'self')].href")).get(0);
+            assertTrue(self.contains(getRecipe.getPath()));
+
+//            var updateRecipe = (String) ((JSONArray) JsonPath.read(responseJson,
+//              "$.actions[?(@.method == 'PATCH')].href")).get(0);
+//            var updatedRecipe = Recipe.builder()
+//                    .name("Another test")
+//                    .recipeId(recipeId.longValue())
+//                    .description("Another test recipe")
+//                    .ingredients(Arrays.asList(Ingredient.builder()
+//                      .ingredientId(((Integer) JsonPath.read(responseJson, "$.ingredients[0].ingredientId")).longValue())
+//                      .ingredient("something else")
+//                      .quantitySpecifier(QuantitySpecifier.Unspecified)
+//                      .quantity(0.0).build()))
+//                    .instructions(Arrays.asList(Instruction.builder()
+//                      .instructionId(((Integer) JsonPath.read(responseJson,
+//                          "$.instructions[0].instructionId")).longValue())
+//                      .instruction("Do something else").build()))
+//                    .build();
 //
-//        var updateRecipeResponse =
-//            restTemplate.exchange(RequestEntity
-//                        .patch(updateRecipe)
-//                        .accept(MediaType.APPLICATION_JSON)
-//                        .body(objectMapper.writeValueAsString(updatedRecipe)),
-//                    String.class);
+//            var updateRecipeResponse =
+//                restTemplate.exchange(RequestEntity
+//                            .patch(updateRecipe)
+//                            .accept(MediaType.APPLICATION_JSON)
+//                            .body(objectMapper.writeValueAsString(updatedRecipe)),
+//                        String.class);
 //
-//        assertEquals(HttpStatus.OK, updateRecipeResponse.getStatusCode());
+//            assertEquals(HttpStatus.OK, updateRecipeResponse.getStatusCode());
 //
-//        var updatedRecipeJson = (LinkedHashMap<String, Object>)
-//        jsonPath.parse(updateRecipeResponse.getBody());
+//            var updatedRecipeJson = (LinkedHashMap<String, Object>)
+//            jsonPath.parse(updateRecipeResponse.getBody());
 //
-//        verifyRecipe(updatedRecipe, updatedRecipeJson);
+//            verifyRecipe(updatedRecipe, updatedRecipeJson);
 //
-//        var deleteRecipe =
-//                (String) ((JSONArray) JsonPath.read(responseJson, "$.actions[?(@.method == 'DELETE')].href"))
-//                        .get(0);
+//            var deleteRecipe =
+//                    (String) ((JSONArray) JsonPath.read(responseJson, "$.actions[?(@.method == 'DELETE')].href"))
+//                            .get(0);
 //
-//        var deleteRecipeResponse = restTemplate.exchange(RequestEntity.delete(deleteRecipe).build(), String.class);
+//            var deleteRecipeResponse = restTemplate.exchange(RequestEntity.delete(deleteRecipe).build(), String.class);
 //
-//        assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
+//            assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
+//
+//            var searchForRecipeResponse =
+//                    restTemplate.exchange(RequestEntity.get(searchForRecipe).build(), String.class);
+//
+//            assertEquals(HttpStatus.OK, searchForRecipeResponse.getStatusCode());
+//
+//            var searchForRecipeJson = jsonPath.parse(searchForRecipeResponse.getBody());
+//            var hits = (JSONArray) JsonPath.read(searchForRecipeJson, "$.hits.hits");
+//
+//            assertEquals(1, hits.size());
 
-        var deleteRecipeResponse =
-            restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
-                    recipeServicePort, recipeId)).build(), String.class);
+            var searchForRecipeResponse =
+                    restTemplate.exchange(RequestEntity.get(searchForRecipe).build(), String.class);
 
-        assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
+            assertEquals(HttpStatus.OK, searchForRecipeResponse.getStatusCode());
+        } finally {
+            var deleteRecipeResponse =
+                    restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
+                            recipeServicePort, recipeId)).build(), String.class);
 
-        verifyListRecipesSize(0);
+            assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
+
+            verifyListRecipesSize(0);
+        }
     }
 
     @Test
     public void testGetRecipeWithoutHyperlinks() throws JSONException, URISyntaxException, JsonProcessingException {
-        verifyListRecipesSize(0);
+        Integer recipeId = -1;
 
-        var addRecipeResponse =
-                restTemplate.exchange(RequestEntity
-                        .put(String.format("http://localhost:%d/recipes/add", recipeServicePort))
-                        .accept(APPLICATION_JSON)
-                        .body(objectMapper.writeValueAsString(recipe)), String.class);
+        try {
+            verifyListRecipesSize(0);
 
-        assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
+            var addRecipeResponse =
+                    restTemplate.exchange(RequestEntity
+                            .put(String.format("http://localhost:%d/recipes/add", recipeServicePort))
+                            .accept(APPLICATION_JSON)
+                            .body(objectMapper.writeValueAsString(recipe)), String.class);
 
-        var addRecipeJson = (LinkedHashMap<String, Object>) jsonPath.parse(addRecipeResponse.getBody());
-        var recipeId = (Integer) JsonPath.read(addRecipeJson, "$.recipeId");
+            assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
 
-        var getRecipe = String.format("http://localhost:%d/recipes/get/%d", recipeServicePort, recipeId);
-        var getRecipeResponse = restTemplate.exchange(RequestEntity.get(getRecipe).build(), String.class);
+            var addRecipeJson = (LinkedHashMap<String, Object>) jsonPath.parse(addRecipeResponse.getBody());
+            recipeId = (Integer) JsonPath.read(addRecipeJson, "$.recipeId");
 
-        assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
-        verifyRecipe(recipe, (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody()));
+            var getRecipe = String.format("http://localhost:%d/recipes/get/%d", recipeServicePort, recipeId);
+            var getRecipeResponse = restTemplate.exchange(RequestEntity.get(getRecipe).build(), String.class);
 
-        var deleteRecipeResponse =
-            restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
-                    recipeServicePort, recipeId)).build(), String.class);
+            assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
+            verifyRecipe(recipe, (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody()));
+        } finally {
+            if (recipeId != -1) {
+                var deleteRecipeResponse =
+                        restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
+                                recipeServicePort, recipeId)).build(), String.class);
 
-        assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
+                assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
 
-        verifyListRecipesSize(0);
+                verifyListRecipesSize(0);
+            }
+        }
     }
 
     @Test
     public void testGetRecipeWithHyperlinks()
             throws JSONException, URISyntaxException, MalformedURLException, JsonProcessingException {
-        verifyListRecipesSize(0);
+        Integer recipeId = -1;
 
-        var addRecipeResponse =
-                restTemplate.exchange(RequestEntity
-                        .put(String.format("http://localhost:%d/recipes/add", recipeServicePort))
-                        .accept(APPLICATION_JSON)
-                        .body(objectMapper.writeValueAsString(recipe)), String.class);
+        try {
+            verifyListRecipesSize(0);
 
-        assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
+            var addRecipeResponse =
+                    restTemplate.exchange(RequestEntity
+                            .put(String.format("http://localhost:%d/recipes/add", recipeServicePort))
+                            .accept(APPLICATION_JSON)
+                            .body(objectMapper.writeValueAsString(recipe)), String.class);
 
-        var addRecipeJson = (LinkedHashMap<String, Object>) jsonPath.parse(addRecipeResponse.getBody());
-        var recipeId = (Integer) JsonPath.read(addRecipeJson, "$.recipeId");
+            assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
 
-        var getRecipe = new URIBuilder("http://localhost")
-                .setPort(recipeServicePort)
-                .setPath(String.format("recipes/get/%d", recipeId))
-                .addParameter(INCLUDE_HYPER_LINKS_PARAM, "true").build().toString();
-        var getRecipeResponse = restTemplate.exchange(RequestEntity.get(getRecipe).build(), String.class);
-        var getRecipeJson = (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody());
+            var addRecipeJson = (LinkedHashMap<String, Object>) jsonPath.parse(addRecipeResponse.getBody());
+            recipeId = (Integer) JsonPath.read(addRecipeJson, "$.recipeId");
 
-        assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
-        verifyRecipe(recipe, getRecipeJson);
+            var getRecipe = new URIBuilder("http://localhost")
+                    .setPort(recipeServicePort)
+                    .setPath(String.format("recipes/get/%d", recipeId))
+                    .addParameter(INCLUDE_HYPER_LINKS_PARAM, "true").build().toString();
+            var getRecipeResponse = restTemplate.exchange(RequestEntity.get(getRecipe).build(), String.class);
+            var getRecipeJson = (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody());
 
-        assertEquals(String.format("/recipes/get/%d?include-hyper-links=false", recipeId),
-            (String) ((JSONArray) JsonPath.read(getRecipeJson, "$.links[*].href")).get(0));
+            assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
+            verifyRecipe(recipe, getRecipeJson);
 
-//        var updatedRecipe = Recipe.builder()
-//          .recipeId(recipeId.longValue())
-//          .name("Another test")
-//          .description("Another test recipe")
-//          .ingredients(Arrays.asList(Ingredient.builder()
-//              .ingredientId(((Integer) JsonPath.read(getRecipeJson, "$.ingredients[0].ingredientId").longValue())
-//              .ingredient("something else")
-//              .quantitySpecifier(QuantitySpecifier.Unspecified)
-//              .quantity(0.0)
-//              .build())))
-//          .instructions(Arrays.asList(Instruction.builder()
-//              .instructionId(((Integer) JsonPath.read(getRecipeJson, "$.instructions[0].instructionId")).longValue())
-//              .instruction("Do something else")
-//              .build()))
-//          .build();
+            assertEquals(String.format("/recipes/get/%d?include-hyper-links=false", recipeId),
+                    (String) ((JSONArray) JsonPath.read(getRecipeJson, "$.links[*].href")).get(0));
+
+//            var updatedRecipe = Recipe.builder()
+//              .recipeId(recipeId.longValue())
+//              .name("Another test")
+//              .description("Another test recipe")
+//              .ingredients(Arrays.asList(Ingredient.builder()
+//                  .ingredientId(((Integer) JsonPath.read(getRecipeJson, "$.ingredients[0].ingredientId").longValue())
+//                  .ingredient("something else")
+//                  .quantitySpecifier(QuantitySpecifier.Unspecified)
+//                  .quantity(0.0)
+//                  .build())))
+//              .instructions(Arrays.asList(Instruction.builder()
+//                  .instructionId(((Integer) JsonPath.read(getRecipeJson, "$.instructions[0].instructionId")).longValue())
+//                  .instruction("Do something else")
+//                  .build()))
+//              .build();
 //
-//        var updateRecipe = (String) ((JSONArray) JsonPath.read(responseJson,
-//          "$.actions[?(@.method == 'PATCH')].href")).get(0);
-//        var updateRecipeResponse =
-//                restTemplate.exchange(RequestEntity.patch(updateRecipe)
-//                        .accept(MediaType.APPLICATION_JSON)
-//                        .body(objectMapper.writeValueAsString(updatedRecipe)), String.class);
+//            var updateRecipe = (String) ((JSONArray) JsonPath.read(responseJson,
+//              "$.actions[?(@.method == 'PATCH')].href")).get(0);
+//            var updateRecipeResponse =
+//                    restTemplate.exchange(RequestEntity.patch(updateRecipe)
+//                            .accept(MediaType.APPLICATION_JSON)
+//                            .body(objectMapper.writeValueAsString(updatedRecipe)), String.class);
 //
-//        assertEquals(HttpStatus.OK, updateRecipeResponse.getStatusCode());
+//            assertEquals(HttpStatus.OK, updateRecipeResponse.getStatusCode());
 //
-//        var updatedRecipeJson =
-//                (LinkedHashMap<String, Object>) jsonPath.parse(updateRecipeResponse.getBody());
+//            var updatedRecipeJson =
+//                    (LinkedHashMap<String, Object>) jsonPath.parse(updateRecipeResponse.getBody());
 //
-//        verifyRecipe(updatedRecipe, updatedRecipeJson);
+//            verifyRecipe(updatedRecipe, updatedRecipeJson);
+        } finally {
+            if (recipeId != -1) {
+                var deleteRecipeResponse =
+                        restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
+                                recipeServicePort, recipeId)).build(), String.class);
 
-        var deleteRecipeResponse =
-            restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
-                    recipeServicePort, recipeId)).build(), String.class);
+                assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
 
-        assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
-
-        verifyListRecipesSize(0);
+                verifyListRecipesSize(0);
+            }
+        }
     }
 
     @Test
     public void testUpdateRecipeWithoutHyperlinks() throws JsonProcessingException, JSONException, URISyntaxException {
-        var updateRecipe = String.format("http://localhost:%d/recipes/update", recipeServicePort);
+        Integer recipeId = -1;
 
-        verifyListRecipesSize(0);
+        try {
+            var updateRecipe = String.format("http://localhost:%d/recipes/update", recipeServicePort);
 
-        var addRecipeResponse =
-                restTemplate.exchange(RequestEntity
-                        .put(String.format("http://localhost:%d/recipes/add", recipeServicePort))
-                        .accept(APPLICATION_JSON)
-                        .body(objectMapper.writeValueAsString(recipe)), String.class);
+            verifyListRecipesSize(0);
 
-        assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
+            var addRecipeResponse =
+                    restTemplate.exchange(RequestEntity
+                            .put(String.format("http://localhost:%d/recipes/add", recipeServicePort))
+                            .accept(APPLICATION_JSON)
+                            .body(objectMapper.writeValueAsString(recipe)), String.class);
 
-        var addRecipeJson = (LinkedHashMap<String, Object>) jsonPath.parse(addRecipeResponse.getBody());
-        var recipeId = (Integer) JsonPath.read(addRecipeJson, "$.recipeId");
+            assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
 
-        var updatedRecipe = Recipe.builder()
-                .recipeId(recipeId.longValue())
-                .name("Another test")
-                .description("Another test recipe")
-                .ingredients(Arrays.asList(Ingredient.builder()
-                    .ingredientId(((Integer) JsonPath.read(addRecipeJson, "$.ingredients[0].ingredientId")).longValue())
-                    .ingredient("something else")
-                    .quantitySpecifier(QuantitySpecifier.Unspecified)
-                    .quantity(0.0)
-                    .build()))
-                .instructions(Arrays.asList(Instruction.builder()
-                        .instructionId(((Integer) JsonPath.read(addRecipeJson, "$.instructions[0].instructionId")).longValue())
-                        .instruction("Do something else")
-                        .build()))
-                .build();
+            var addRecipeJson = (LinkedHashMap<String, Object>) jsonPath.parse(addRecipeResponse.getBody());
+            recipeId = (Integer) JsonPath.read(addRecipeJson, "$.recipeId");
 
-        var updateRecipeResponse = webClient
-                .patch()
-                .uri(updateRecipe)
-                .accept(APPLICATION_JSON)
-                .bodyValue(objectMapper.writeValueAsString(updatedRecipe))
-                .exchange()
-                .expectStatus()
-                .is2xxSuccessful()
-                .expectHeader()
-                .contentType(APPLICATION_JSON)
-                .expectBody()
-                .jsonPath("$.recipeId")
+            var updatedRecipe = Recipe.builder()
+                    .recipeId(recipeId.longValue())
+                    .name("Another test")
+                    .description("Another test recipe")
+                    .ingredients(Arrays.asList(Ingredient.builder()
+                            .ingredientId(((Integer) JsonPath.read(addRecipeJson,
+                                    "$.ingredients[0].ingredientId")).longValue())
+                            .ingredient("something else")
+                            .quantitySpecifier(QuantitySpecifier.Unspecified)
+                            .quantity(0.0)
+                            .build()))
+                    .instructions(Arrays.asList(Instruction.builder()
+                            .instructionId(((Integer) JsonPath.read(addRecipeJson,
+                                    "$.instructions[0].instructionId")).longValue())
+                            .instruction("Do something else")
+                            .build()))
+                    .build();
+
+            var updateRecipeResponse = webClient
+                    .patch()
+                    .uri(updateRecipe)
+                    .accept(APPLICATION_JSON)
+                    .bodyValue(objectMapper.writeValueAsString(updatedRecipe))
+                    .exchange()
+                    .expectStatus()
+                    .is2xxSuccessful()
+                    .expectHeader()
+                    .contentType(APPLICATION_JSON)
+                    .expectBody()
+                    .jsonPath("$.recipeId")
                     .isEqualTo(recipeId)
-                .jsonPath("$.name")
+                    .jsonPath("$.name")
                     .isEqualTo(updatedRecipe.getName())
-                .jsonPath("$.description")
+                    .jsonPath("$.description")
                     .isEqualTo(updatedRecipe.getDescription())
-                .jsonPath("$.ingredients[0].ingredient")
+                    .jsonPath("$.ingredients[0].ingredient")
                     .isEqualTo(updatedRecipe.getIngredients().get(0).getIngredient())
-                .jsonPath("$.ingredients[0].quantitySpecifier")
+                    .jsonPath("$.ingredients[0].quantitySpecifier")
                     .isEqualTo(updatedRecipe.getIngredients().get(0).getQuantitySpecifier().toString())
-                .jsonPath("$.ingredients[0].quantity")
+                    .jsonPath("$.ingredients[0].quantity")
                     .isEqualTo(updatedRecipe.getIngredients().get(0).getQuantity())
-                .jsonPath("$.instructions[0].instruction")
+                    .jsonPath("$.instructions[0].instruction")
                     .isEqualTo(updatedRecipe.getInstructions().get(0).getInstruction());
 
-        var getRecipe = String.format("http://localhost:%d/recipes/get/%d", recipeServicePort, recipeId);
-        var getRecipeResponse = restTemplate.exchange(RequestEntity.get(getRecipe).build(), String.class);
+            var getRecipe = String.format("http://localhost:%d/recipes/get/%d", recipeServicePort, recipeId);
+            var getRecipeResponse = restTemplate.exchange(RequestEntity.get(getRecipe).build(), String.class);
 
-        assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
-        verifyRecipe(updatedRecipe, (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody()));
+            assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
+            verifyRecipe(updatedRecipe, (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody()));
+        } finally {
+            if (recipeId != -1) {
+                var deleteRecipeResponse =
+                        restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
+                                recipeServicePort, recipeId)).build(), String.class);
 
-        var deleteRecipeResponse =
-                restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
-                        recipeServicePort, recipeId)).build(), String.class);
+                assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
 
-        assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
-
-        verifyListRecipesSize(0);
+                verifyListRecipesSize(0);
+            }
+        }
     }
 
     @Test
     public void testUpdateRecipeWithHyperlinks()
             throws JSONException, URISyntaxException, MalformedURLException, JsonProcessingException {
-        var updateRecipe = new URIBuilder("http://localhost")
-                .setPort(recipeServicePort)
-                .setPath("/recipes/update")
-                .addParameter(INCLUDE_HYPER_LINKS_PARAM, "true")
-                .build().toString();
+        Integer recipeId = -1;
 
-        verifyListRecipesSize(0);
+        try {
+            var updateRecipe = new URIBuilder("http://localhost")
+                    .setPort(recipeServicePort)
+                    .setPath("/recipes/update")
+                    .addParameter(INCLUDE_HYPER_LINKS_PARAM, "true")
+                    .build().toString();
 
-        var addRecipeResponse = restTemplate.exchange(RequestEntity
-                .put(String.format("http://localhost:%d/recipes/add", recipeServicePort))
-                .accept(APPLICATION_JSON)
-                .body(objectMapper.writeValueAsString(recipe)), String.class);
+            verifyListRecipesSize(0);
 
-        assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
+            var addRecipeResponse = restTemplate.exchange(RequestEntity
+                    .put(String.format("http://localhost:%d/recipes/add", recipeServicePort))
+                    .accept(APPLICATION_JSON)
+                    .body(objectMapper.writeValueAsString(recipe)), String.class);
 
-        var addRecipeJson = (LinkedHashMap<String, Object>) jsonPath.parse(addRecipeResponse.getBody());
-        var recipeId = (Integer) JsonPath.read(addRecipeJson, "$.recipeId");
+            assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
 
-        var updatedRecipe = Recipe.builder()
-                .recipeId(recipeId.longValue())
-                .name("Another test")
-                .description("Another test recipe")
-                .ingredients(Arrays.asList(Ingredient.builder()
-                    .ingredientId(((Integer) JsonPath.read(addRecipeJson, "$.ingredients[0].ingredientId")).longValue())
-                    .ingredient("something else")
-                    .quantitySpecifier(QuantitySpecifier.Unspecified)
-                    .quantity(0.0)
-                    .build()))
-                .instructions(Arrays.asList(Instruction.builder()
-                    .instructionId(((Integer) JsonPath.read(addRecipeJson, "$.instructions[0].instructionId")).longValue())
-                    .instruction("Do something else")
-                    .build()))
-                .build();
+            var addRecipeJson = (LinkedHashMap<String, Object>) jsonPath.parse(addRecipeResponse.getBody());
+            recipeId = (Integer) JsonPath.read(addRecipeJson, "$.recipeId");
 
-        var updateRecipeResponse = webClient
-                .patch()
-                .uri(updateRecipe)
-                .accept(APPLICATION_JSON)
-                .bodyValue(objectMapper.writeValueAsString(updatedRecipe))
-                .exchange()
-                .expectStatus()
-                .is2xxSuccessful()
-                .expectHeader()
-                .contentType(de.ingogriebsch.spring.hateoas.siren.MediaTypes.SIREN_JSON_VALUE)
-                .expectBody()
-                .jsonPath("$.recipeId")
+            var updatedRecipe = Recipe.builder()
+                    .recipeId(recipeId.longValue())
+                    .name("Another test")
+                    .description("Another test recipe")
+                    .ingredients(Arrays.asList(Ingredient.builder()
+                            .ingredientId(((Integer) JsonPath.read(addRecipeJson,
+                                    "$.ingredients[0].ingredientId")).longValue())
+                            .ingredient("something else")
+                            .quantitySpecifier(QuantitySpecifier.Unspecified)
+                            .quantity(0.0)
+                            .build()))
+                    .instructions(Arrays.asList(Instruction.builder()
+                            .instructionId(((Integer) JsonPath.read(addRecipeJson,
+                                    "$.instructions[0].instructionId")).longValue())
+                            .instruction("Do something else")
+                            .build()))
+                    .build();
+
+            var updateRecipeResponse = webClient
+                    .patch()
+                    .uri(updateRecipe)
+                    .accept(APPLICATION_JSON)
+                    .bodyValue(objectMapper.writeValueAsString(updatedRecipe))
+                    .exchange()
+                    .expectStatus()
+                    .is2xxSuccessful()
+                    .expectHeader()
+                    .contentType(de.ingogriebsch.spring.hateoas.siren.MediaTypes.SIREN_JSON_VALUE)
+                    .expectBody()
+                    .jsonPath("$.recipeId")
                     .isEqualTo(recipeId)
-                .jsonPath("$.name")
+                    .jsonPath("$.name")
                     .isEqualTo(updatedRecipe.getName())
-                .jsonPath("$.description")
+                    .jsonPath("$.description")
                     .isEqualTo(updatedRecipe.getDescription())
-                .jsonPath("$.ingredients[0].ingredient")
+                    .jsonPath("$.ingredients[0].ingredient")
                     .isEqualTo(updatedRecipe.getIngredients().get(0).getIngredient())
-                .jsonPath("$.ingredients[0].quantitySpecifier")
+                    .jsonPath("$.ingredients[0].quantitySpecifier")
                     .isEqualTo(updatedRecipe.getIngredients().get(0).getQuantitySpecifier().toString())
-                .jsonPath("$.ingredients[0].quantity")
+                    .jsonPath("$.ingredients[0].quantity")
                     .isEqualTo(updatedRecipe.getIngredients().get(0).getQuantity())
-                .jsonPath("$.instructions[0].instruction")
+                    .jsonPath("$.instructions[0].instruction")
                     .isEqualTo(updatedRecipe.getInstructions().get(0).getInstruction());
 
-        var getRecipe = String.format("http://localhost:%d/recipes/get/%d", recipeServicePort, recipeId);
-        var getRecipeResponse = restTemplate.exchange(RequestEntity.get(getRecipe).build(), String.class);
+            var getRecipe = String.format("http://localhost:%d/recipes/get/%d", recipeServicePort, recipeId);
+            var getRecipeResponse = restTemplate.exchange(RequestEntity.get(getRecipe).build(), String.class);
 
-        assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
-        verifyRecipe(updatedRecipe, (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody()));
-//        verifyUrlsMatch(String.format("/recipes/get/%d", port, recipeId),
-//                (String) ((JSONArray) JsonPath.read(responseJson, "$.links[*].href")).get(0));
+            assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
+            verifyRecipe(updatedRecipe, (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody()));
+//            verifyUrlsMatch(String.format("/recipes/get/%d", port, recipeId),
+//                    (String) ((JSONArray) JsonPath.read(responseJson, "$.links[*].href")).get(0));
 //
-//        var updatedRecipe2 = Recipe.builder()
-//                .recipeId(recipeId.longValue())
-//                .name("Yet another test")
-//                .description("Yet another test recipe")
-//                .ingredients(Arrays.asList(Ingredient.builder()
-//                        .ingredientId(((Integer) JsonPath.read(addRecipeJson, "$.ingredients[0].ingredientId")).longValue())
-//                        .ingredient("something else again")
-//                        .quantitySpecifier(QuantitySpecifier.Unspecified)
-//                        .quantity(0.0)
-//                        .build()))
-//                .instructions(Arrays.asList(Instruction.builder()
-//                        .instructionId(((Integer) JsonPath.read(addRecipeJson, "$.instructions[0].instructionId")).longValue())
-//                        .instruction("Do something else again")
-//                        .build()))
-//                .build();
+//            var updatedRecipe2 = Recipe.builder()
+//                    .recipeId(recipeId.longValue())
+//                    .name("Yet another test")
+//                    .description("Yet another test recipe")
+//                    .ingredients(Arrays.asList(Ingredient.builder()
+//                            .ingredientId(((Integer) JsonPath.read(addRecipeJson, "$.ingredients[0].ingredientId")).longValue())
+//                            .ingredient("something else again")
+//                            .quantitySpecifier(QuantitySpecifier.Unspecified)
+//                            .quantity(0.0)
+//                            .build()))
+//                    .instructions(Arrays.asList(Instruction.builder()
+//                            .instructionId(((Integer) JsonPath.read(addRecipeJson,
+//                              "$.instructions[0].instructionId")).longValue())
+//                            .instruction("Do something else again")
+//                            .build()))
+//                    .build();
 //
-//        var updateRecipe2 =
-//                (String) ((JSONArray) JsonPath.read(responseJson, "$.actions[?(@.method == 'PATCH')].href")).get(0);
-//        var updateRecipeResponse2 = restTemplate.exchange(RequestEntity
-//                .patch(updateRecipe2)
-//                .accept(APPLICATION_JSON)
-//                .body(updatedRecipe2), String.class);
+//            var updateRecipe2 =
+//                    (String) ((JSONArray) JsonPath.read(responseJson,
+//                      "$.actions[?(@.method == 'PATCH')].href")).get(0);
+//            var updateRecipeResponse2 = restTemplate.exchange(RequestEntity
+//                    .patch(updateRecipe2)
+//                    .accept(APPLICATION_JSON)
+//                    .body(updatedRecipe2), String.class);
 //
-//        assertEquals(HttpStatus.OK, updateRecipeResponse2.getStatusCode());
+//            assertEquals(HttpStatus.OK, updateRecipeResponse2.getStatusCode());
 //
-//        var updatedRecipeJson2 = (LinkedHashMap<String, Object>) jsonPath.parse(updateRecipeResponse2.getBody());
+//            var updatedRecipeJson2 = (LinkedHashMap<String, Object>) jsonPath.parse(updateRecipeResponse2.getBody());
 //
-//        verifyRecipe(updatedRecipe2, updatedRecipeJson2);
+//            verifyRecipe(updatedRecipe2, updatedRecipeJson2);
 //
-//        var deleteRecipe =
-//            (String) ((JSONArray) JsonPath.read(responseJson, "$.actions[?(@.method == 'DELETE')].href")).get(0);
-//        var deleteRecipeResponse = restTemplate.exchange(RequestEntity.delete(deleteRecipe).build(), String.class);
+//            var deleteRecipe =
+//                (String) ((JSONArray) JsonPath.read(responseJson, "$.actions[?(@.method == 'DELETE')].href")).get(0);
+//            var deleteRecipeResponse = restTemplate.exchange(RequestEntity.delete(deleteRecipe).build(), String.class);
+        } finally {
+            if (recipeId != -1) {
+                var deleteRecipeResponse =
+                        restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
+                                recipeServicePort, recipeId)).build(), String.class);
 
-        var deleteRecipeResponse =
-                restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
-                        recipeServicePort, recipeId)).build(), String.class);
+                assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
 
-        assertEquals(HttpStatus.OK, deleteRecipeResponse.getStatusCode());
-
-        verifyListRecipesSize(0);
+                verifyListRecipesSize(0);
+            }
+        }
     }
 
     private void verifyListRecipesSize(final int expectedNumberOfElements) throws JSONException, URISyntaxException {
@@ -767,5 +825,53 @@ class RecipeServiceAppTest {
         }
 
         return classResourceUri.getPath();
+    }
+
+    private void writeConfigurationYmlFile(final Map<String, ?> configurationMapping)
+            throws IOException, URISyntaxException {
+
+        try (InputStream inputStream = this.getClass().getClassLoader()
+                .getResourceAsStream(CONFIGURATION_YML_FILE + ".ftl")) {
+            String templateString = IOUtils.toString(inputStream);
+            StringSubstitutor substitutor = new StringSubstitutor(configurationMapping);
+            String resolvedString = substitutor.replace(templateString);
+            Files.write(Paths.get(getResourcePath(), CONFIGURATION_YML_FILE), resolvedString.getBytes());
+        }
+    }
+
+    private void addElasticsearchCertificate(final List<Pair<String, Certificate>> certificates,
+                                             final ElasticsearchContainer container)
+            throws CertificateException, IOException {
+        var caCerts = container.caCertAsBytes();
+        if (caCerts.isPresent()) {
+
+            InputStream fis = new ByteArrayInputStream(caCerts.get());
+            BufferedInputStream bis = new BufferedInputStream(fis);
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+            while (bis.available() > 0) {
+                Certificate cert = cf.generateCertificate(bis);
+                String alias = "Elasticsearch" + bis.available();
+                certificates.add(new Pair(alias, cert));
+            }
+        }
+    }
+
+    private void createKeyStore(final List<Pair<String, Certificate>> certificates)
+            throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException, URISyntaxException {
+        KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        keyStore.load(null); //Make an empty store
+        var keyStoreFile = Paths.get(getResourcePath().toString(), "keystore.jks").toFile();
+
+        for (var certificate : certificates) {
+            keyStore.setCertificateEntry(certificate.getKey(), certificate.getValue());
+        }
+
+        try (FileOutputStream stream = new FileOutputStream(keyStoreFile)) {
+            keyStore.store(stream, KEYSTORE_PASSWORD.toCharArray());
+        }
+
+        System.setProperty("javax.net.ssl.trustStore", keyStoreFile.getAbsolutePath());
+        System.setProperty("javax.net.ssl.trustStorePassword", KEYSTORE_PASSWORD);
     }
 }
