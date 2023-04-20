@@ -6,13 +6,14 @@
  */
 package org.grego.recipeservice.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import lombok.ToString;
 import lombok.Setter;
+import lombok.ToString;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -42,6 +43,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
+@EqualsAndHashCode
 @Table(name = Recipe.RECIPES_TABLE_NAME,
         uniqueConstraints = {@UniqueConstraint(name = "unique_recipe_name_and_variation",
                 columnNames = {"name", "variation"})})

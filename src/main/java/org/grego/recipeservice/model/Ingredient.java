@@ -15,13 +15,14 @@ import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import java.util.Map;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import lombok.ToString;
 import lombok.Setter;
+import lombok.ToString;
 
 import org.springframework.data.annotation.Id;
 
@@ -35,6 +36,7 @@ import org.springframework.data.annotation.Id;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
+@EqualsAndHashCode
 @Table(name = Ingredient.INGREDIENTS_TABLE_NAME)
 public class Ingredient {
     /**

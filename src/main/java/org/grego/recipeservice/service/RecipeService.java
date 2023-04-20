@@ -37,6 +37,7 @@ import reactor.util.function.Tuple3;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -121,13 +122,13 @@ public class RecipeService implements IRecipeService {
     /**
      * SQL comment to get ingredients that match the recipe id.
      */
-    private static final String INGREDIENTS_MATCHING_QUERY =
+    static final String INGREDIENTS_MATCHING_QUERY =
             String.format("%s %s", INGREDIENTS_QUERY, MATCH_RECIPE_ID);
 
     /**
      * SQL command to get the instructions that match the recipe id.
      */
-    private static final String INSTRUCTIONS_MATCHING_QUERY =
+    static final String INSTRUCTIONS_MATCHING_QUERY =
             String.format("%s %s", INSTRUCTIONS_QUERY, MATCH_RECIPE_ID);
 
     /**
@@ -221,12 +222,15 @@ public class RecipeService implements IRecipeService {
     @Lock(LockMode.PESSIMISTIC_READ)
     public Flux<Recipe> getAllRecipes(final long startPage, final int pageSize) {
 
-        return recipeRepository.findAll(startPage, pageSize).flatMap(recipe ->
+        Flux<Recipe> results = recipeRepository.findAll(startPage, pageSize)
+            .flatMap(recipe ->
                 Mono.zip(
-                                Mono.just(recipe),
-                                getIngredients(recipe.getRecipeId()),
-                                getInstructions(recipe.getRecipeId()))
-                        .map(mergeRecipeWithIngredientsAndInstructions()));
+                        Mono.just(recipe),
+                        getIngredients(recipe.getRecipeId()),
+                        getInstructions(recipe.getRecipeId()))
+                    .map(mergeRecipeWithIngredientsAndInstructions()));
+
+        return results.switchIfEmpty(Flux.empty());
     }
 
     /**
@@ -415,6 +419,7 @@ public class RecipeService implements IRecipeService {
                 .fetch()
                 .all()
                 .map(Ingredient::fromRow)
+                .filter(Objects::nonNull)
                 .collectList();
     }
 
@@ -424,6 +429,7 @@ public class RecipeService implements IRecipeService {
                 .fetch()
                 .all()
                 .map(Instruction::fromRow)
+                .filter(Objects::nonNull)
                 .collectList();
     }
 

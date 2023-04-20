@@ -32,7 +32,7 @@ mvn spring-boot:run
 
 Get list of recipes:
 ```bash
-curl "http://localhost:8080/recipes/list?start=0&count=20"
+curl "http://localhost:8080/recipes/list?page-number=1&page-size=20"
 ```
 
 Add recipe:
@@ -42,7 +42,7 @@ curl -X PUT "http://localhost:8080/recipes/add" -d '{"name":"Tea","description":
 
 Get recipe:
 ```bash
-curl "http://localhost:8080/recipes/get/1"
+    curl "http://localhost:8080/recipes/get/1"
 ```
 
 Delete recipe:

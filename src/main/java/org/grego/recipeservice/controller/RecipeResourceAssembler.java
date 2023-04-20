@@ -31,6 +31,14 @@ public class RecipeResourceAssembler implements SimpleRepresentationModelAssembl
     private ObjectMapper objectMapper;
 
     /**
+     * Constructor for RecipeResourceAssembler.
+     * @param mapper
+     */
+    public RecipeResourceAssembler(final ObjectMapper mapper) {
+        this.objectMapper = mapper;
+    }
+
+    /**
      * Add hyper links for a Recipe.
      * @param resource
      */

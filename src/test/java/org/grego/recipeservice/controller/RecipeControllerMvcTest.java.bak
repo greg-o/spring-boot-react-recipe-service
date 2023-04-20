@@ -1,0 +1,94 @@
+package org.grego.recipeservice.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.r2dbc.spi.ConnectionFactory;
+import jakarta.servlet.http.HttpServletResponse;
+import org.grego.recipeservice.model.Recipe;
+import org.grego.recipeservice.service.IRecipeService;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.web.servlet.MockMvc;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
+
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@ExtendWith(SpringExtension.class)
+@WebFluxTest(controllers = RecipeController.class)
+@AutoConfigureTestDatabase(replace = Replace.NONE)
+//@Import(ConnectionFactory.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+public class RecipeControllerMvcTest {
+    private static final long PAGE_NUMBER_1 = 1L;
+    private static final int PAGE_SIZE_10 = 10;
+    private static final boolean INCLUDE_HYPER_LINKS = true;
+    public static final long PAGE_NUMBER_ZERO = 0L;
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private IRecipeService recipeService;
+
+
+    @MockBean
+    private RecipeResourceAssembler recipeResourceAssembler;
+
+    @SpyBean
+    private ObjectMapper objectMapper = new ObjectMapper();
+
+    @BeforeAll
+    void init() {
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    }
+
+    /**
+     * Test list recipes with hyper-links and an invalid page number.
+     * @throws Exception
+     */
+    @Test
+    void testListRecipesWithHyperLinksInvalidPage() throws Exception {
+
+        var response = mockMvc.perform(get("/recipes/list?page-number=0"))
+                .andExpect(result -> {
+                    assertEquals(result.getResponse().getStatus(), HttpServletResponse.SC_BAD_REQUEST);
+                });
+
+//        StepVerifier.create(response)
+//                .expectNextMatches(responseEntity -> {
+//                    return
+//                            responseEntity.getStatusCode() == HttpStatus.BAD_REQUEST
+//                                    && MediaType.TEXT_PLAIN_VALUE.equals(responseEntity.getHeaders().getContentType().toString())
+//                                    && responseEntity.getBody().toString().startsWith("Pages begin at 1:  page-number = ");
+//                })
+//                .verifyComplete();
+//
+//        verifyNoInteractions(recipeService, recipeResourceAssembler);
+    }
+    @Test
+    void testListRecipes_withHyperLinks_invalidPage() throws Exception {
+
+        var response = mockMvc.perform(get("/recipes/list?page-number=0"))
+                .andExpect(result -> {
+                    assertEquals(result.getResponse().getStatus(), HttpServletResponse.SC_BAD_REQUEST);
+                });
+
+    }
+}

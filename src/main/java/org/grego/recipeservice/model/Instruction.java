@@ -6,13 +6,14 @@
  */
 package org.grego.recipeservice.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import lombok.ToString;
 import lombok.Setter;
+import lombok.ToString;
 import org.springframework.data.annotation.Id;
 
 import javax.persistence.Column;
@@ -32,6 +33,7 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
+@EqualsAndHashCode
 @Table(name = Instruction.INSTRUCTIONS_TABLE_NAME)
 public class Instruction {
     /**

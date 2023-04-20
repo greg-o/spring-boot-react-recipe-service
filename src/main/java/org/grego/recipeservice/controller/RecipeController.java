@@ -88,11 +88,17 @@ public class RecipeController {
     )
     public Mono<ResponseEntity<?>> listRecipes(
             @RequestParam(value = "page-number", required = false, defaultValue = "1")
-            final Long pageNumber,
+            final long pageNumber,
             @RequestParam(value = "page-size", required = false, defaultValue = "${service.default_page_size:20}")
-            final Integer pageSize,
+            final int pageSize,
             @RequestParam(name = "include-hyper-links", required = false, defaultValue = "false")
             final Boolean includeHyperLinks) {
+
+        if (pageNumber < 1) {
+            return Mono.just(ResponseEntity.badRequest()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body(String.format("Pages begin at 1:  page-number = %d", pageNumber)));
+        }
 
         if (includeHyperLinks) {
             return listRecipesWithHyperLinks(pageNumber, pageSize);
@@ -118,8 +124,10 @@ public class RecipeController {
             @PathVariable("id") final long id,
             @RequestParam(name = "include-hyper-links", required = false, defaultValue = "false")
             final Boolean includeHyperLinks) {
-        return recipeService.getRecipeById(id)
+        Mono<ResponseEntity<?>> response = recipeService.getRecipeById(id)
                 .map(recipe -> getRecipeResponse(includeHyperLinks, recipe));
+
+        return response.switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
     }
 
     /**
@@ -168,8 +176,10 @@ public class RecipeController {
             @RequestParam(name = "include-hyper-links", required = false, defaultValue = "false")
             final Boolean includeHyperLinks) {
         try {
-            return recipeService.updateRecipe(objectMapper.readValue(recipe, Recipe.class))
+            Mono<ResponseEntity<?>> response = recipeService.updateRecipe(objectMapper.readValue(recipe, Recipe.class))
                     .map(updatedRecipe -> getRecipeResponse(includeHyperLinks, updatedRecipe));
+
+            return response.switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
         } catch (JsonProcessingException ex) {
             return Mono.just(ResponseEntity.internalServerError().build());
         }
@@ -185,8 +195,10 @@ public class RecipeController {
             produces = MediaType.TEXT_PLAIN_VALUE
     )
     public Mono<ResponseEntity<?>> deleteRecipe(@PathVariable("id") final long id) {
-        return recipeService.deleteRecipeById(id)
+        Mono<ResponseEntity<?>> response =  recipeService.deleteRecipeById(id)
                 .map(recipeId -> ResponseEntity.ok(String.format("Deleted recipe %d", recipeId)));
+
+        return response.switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
     }
 
     /**
