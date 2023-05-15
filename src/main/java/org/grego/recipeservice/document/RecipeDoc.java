@@ -70,12 +70,14 @@ public class RecipeDoc extends ElasticsearchDoc {
      * Ingredients for the recipe.
      */
     @Field(type = FieldType.Nested, includeInParent = true)
+    @Builder.Default
     private List<IngredientDoc> ingredients = Collections.emptyList();
 
     /**
      * Instructions for the recipe.
      */
     @Field(type = FieldType.Nested, includeInParent = true)
+    @Builder.Default
     private List<InstructionDoc> instructions = Collections.emptyList();
 
     /**

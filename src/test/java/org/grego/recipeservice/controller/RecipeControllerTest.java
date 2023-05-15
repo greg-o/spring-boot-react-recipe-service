@@ -138,7 +138,7 @@ public class RecipeControllerTest {
                 return
                     statusCodeAndContentTypeAreExpected(HttpStatus.BAD_REQUEST,
                         MediaType.TEXT_PLAIN_VALUE, responseEntity)
-                    && responseEntity.getBody().toString().startsWith("Pages begin at 1:  page-number = ");
+                        && responseEntity.getBody().toString().startsWith("Pages begin at 1:  page-number = ");
             })
             .verifyComplete();
 
@@ -157,9 +157,9 @@ public class RecipeControllerTest {
         StepVerifier.create(response)
                 .expectNextMatches(responseEntity -> {
                     return
-                        statusCodeAndContentTypeAreExpected(HttpStatus.BAD_REQUEST,
-                                MediaType.TEXT_PLAIN_VALUE, responseEntity)
-                        && responseEntity.getBody().toString().startsWith("Pages begin at 1:  page-number = ");
+                            statusCodeAndContentTypeAreExpected(HttpStatus.BAD_REQUEST,
+                                    MediaType.TEXT_PLAIN_VALUE, responseEntity)
+                                    && responseEntity.getBody().toString().startsWith("Pages begin at 1:  page-number = ");
                 })
                 .verifyComplete();
 
@@ -179,22 +179,22 @@ public class RecipeControllerTest {
         when(recipeService.getAllRecipes(anyLong(), anyInt())).thenReturn(recipeFlux);
         when(recipeService.getRecipeCount()).thenReturn(Mono.just(0L));
         when(recipeResourceAssembler.toCollectionModel(any(Iterable.class)))
-            .thenAnswer(invocation -> assembler.toCollectionModel(invocation.getArgument(0)));
+                .thenAnswer(invocation -> assembler.toCollectionModel(invocation.getArgument(0)));
 
         var response = recipeController.listRecipes(PAGE_NUMBER_1, PAGE_SIZE_10, INCLUDE_HYPER_LINKS);
 
         StepVerifier.create(response)
-            .expectNextMatches(responseEntity -> {
-                if (!statusCodeAndContentTypeAreExpected(HttpStatus.OK,
-                        de.ingogriebsch.spring.hateoas.siren.MediaTypes.SIREN_JSON_VALUE, responseEntity)) {
-                    return false;
-                }
+                .expectNextMatches(responseEntity -> {
+                    if (!statusCodeAndContentTypeAreExpected(HttpStatus.OK,
+                            de.ingogriebsch.spring.hateoas.siren.MediaTypes.SIREN_JSON_VALUE, responseEntity)) {
+                        return false;
+                    }
 
-                var json = jsonPath.parse(responseEntity.getBody().toString());
-                return (0 == (Integer) JsonPath.read(json, "$.page.size")
-                        && ((JSONArray) JsonPath.read(json, "$.content")).isEmpty());
-            })
-            .verifyComplete();
+                    var json = jsonPath.parse(responseEntity.getBody().toString());
+                    return (0 == (Integer) JsonPath.read(json, "$.page.size")
+                            && ((JSONArray) JsonPath.read(json, "$.content")).isEmpty());
+                })
+                .verifyComplete();
 
         verify(recipeService, times(1)).getAllRecipes(anyLong(), anyInt());
         verify(recipeService, times(1)).getRecipeCount();
@@ -245,7 +245,7 @@ public class RecipeControllerTest {
         when(recipeService.getAllRecipes(anyLong(), anyInt())).thenReturn(recipeFlux);
         when(recipeService.getRecipeCount()).thenReturn(Mono.just((long) recipes.size()));
         when(recipeResourceAssembler.toCollectionModel(any(Iterable.class)))
-            .thenAnswer(invocation -> assembler.toCollectionModel(invocation.getArgument(0)));
+                .thenAnswer(invocation -> assembler.toCollectionModel(invocation.getArgument(0)));
 
         var response = recipeController.listRecipes(PAGE_NUMBER_1, PAGE_SIZE_10, INCLUDE_HYPER_LINKS);
 
@@ -258,7 +258,7 @@ public class RecipeControllerTest {
 
                     var json = jsonPath.parse(responseEntity.getBody().toString());
                     return (recipes.size() == (Integer) JsonPath.read(json, "$.page.size")
-                        && recipes.size() == ((JSONArray) JsonPath.read(json, "$.content")).size());
+                            && recipes.size() == ((JSONArray) JsonPath.read(json, "$.content")).size());
                 })
                 .verifyComplete();
 
@@ -765,7 +765,7 @@ public class RecipeControllerTest {
 
                     var json = jsonPath.parse(responseEntity.getBody().toString());
                     return (recipe.getName().equals((String) JsonPath.read(json, "$.name"))
-                        && recipe.getDescription().equals((String) JsonPath.read(json, "$.description")));
+                            && recipe.getDescription().equals((String) JsonPath.read(json, "$.description")));
                 })
                 .verifyComplete();
 
@@ -925,7 +925,7 @@ public class RecipeControllerTest {
     }
 
     private static boolean statusCodeAndContentTypeAreExpected(final HttpStatus expectedStatus,
-                               final String expectedContentType, final ResponseEntity<?> responseEntity) {
+               final String expectedContentType, final ResponseEntity<?> responseEntity) {
         return (expectedStatus == responseEntity.getStatusCode()
                 && expectedContentType.equals(responseEntity.getHeaders().getContentType().toString()));
     }

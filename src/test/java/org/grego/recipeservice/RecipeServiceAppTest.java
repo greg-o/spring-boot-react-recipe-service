@@ -202,8 +202,8 @@ class RecipeServiceAppTest {
     }
 
     @Test
-    public void testListRecipes() throws JSONException, URISyntaxException, MalformedURLException {
-        Integer recipeId = -1;
+    public void testListRecipes() throws JSONException, URISyntaxException, MalformedURLException, JsonProcessingException {
+        Integer recipeId = null;
         try {
             var listRecipes = new URIBuilder("http://localhost")
                 .setPort(recipeServicePort)
@@ -223,7 +223,7 @@ class RecipeServiceAppTest {
                 restTemplate.exchange(RequestEntity
                     .put(addRecipe)
                     .accept(MediaType.APPLICATION_JSON)
-                    .body(recipe), String.class);
+                    .body(objectMapper.writeValueAsString(recipe)), String.class);
 
             assertEquals(HttpStatus.OK, addRecipeResponse.getStatusCode());
             verifyListRecipesSize(1);
@@ -232,7 +232,7 @@ class RecipeServiceAppTest {
             recipeId = (Integer) JsonPath.read(addRecipeJson, "$.recipeId");
             assertNotNull(recipeId);
         } finally {
-            if (recipeId != -1) {
+            if (recipeId != null) {
                 restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
                     recipeServicePort, recipeId)).build(), String.class);
 
@@ -243,7 +243,7 @@ class RecipeServiceAppTest {
 
     @Test
     public void testAddRecipeWithoutHyperlinks() throws JSONException, URISyntaxException, JsonProcessingException {
-        Integer recipeId = -1;
+        Integer recipeId = null;
 
         try {
             var addRecipe = new URIBuilder("http://localhost")
@@ -286,7 +286,7 @@ class RecipeServiceAppTest {
 
             assertEquals(HttpStatus.OK, searchForRecipeResponse.getStatusCode());
         } finally {
-            if (recipeId != -1) {
+            if (recipeId != null) {
                 restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
                     recipeServicePort, recipeId)).build(), String.class);
 
@@ -298,7 +298,7 @@ class RecipeServiceAppTest {
     @Test
     public void testAddRecipeWithHyperlinks()
             throws URISyntaxException, JSONException, JsonProcessingException, MalformedURLException {
-        Integer recipeId = -1;
+        Integer recipeId = null;
 
         try {
             var addRecipe = new URIBuilder("http://localhost")
@@ -357,7 +357,7 @@ class RecipeServiceAppTest {
 
     @Test
     public void testGetRecipeWithoutHyperlinks() throws JSONException, URISyntaxException, JsonProcessingException {
-        Integer recipeId = -1;
+        Integer recipeId = null;
 
         try {
             verifyListRecipesSize(0);
@@ -379,7 +379,7 @@ class RecipeServiceAppTest {
             assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
             verifyRecipe(recipe, (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody()));
         } finally {
-            if (recipeId != -1) {
+            if (recipeId != null) {
                 restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
                     recipeServicePort, recipeId)).build(), String.class);
 
@@ -391,7 +391,7 @@ class RecipeServiceAppTest {
     @Test
     public void testGetRecipeWithHyperlinks()
             throws JSONException, URISyntaxException, MalformedURLException, JsonProcessingException {
-        Integer recipeId = -1;
+        Integer recipeId = null;
 
         try {
             verifyListRecipesSize(0);
@@ -421,7 +421,7 @@ class RecipeServiceAppTest {
                 (String) ((JSONArray) JsonPath.read(getRecipeJson, "$.links[*].href")).get(0));
 
         } finally {
-            if (recipeId != -1) {
+            if (recipeId != null) {
                 restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
                     recipeServicePort, recipeId)).build(), String.class);
 
@@ -432,7 +432,7 @@ class RecipeServiceAppTest {
 
     @Test
     public void testUpdateRecipeWithoutHyperlinks() throws JsonProcessingException, JSONException, URISyntaxException {
-        Integer recipeId = -1;
+        Integer recipeId = null;
 
         try {
             var updateRecipe = String.format("http://localhost:%d/recipes/update", recipeServicePort);
@@ -500,7 +500,7 @@ class RecipeServiceAppTest {
             assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
             verifyRecipe(updatedRecipe, (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody()));
         } finally {
-            if (recipeId != -1) {
+            if (recipeId != null) {
                 restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
                     recipeServicePort, recipeId)).build(), String.class);
 
@@ -512,7 +512,7 @@ class RecipeServiceAppTest {
     @Test
     public void testUpdateRecipeWithHyperlinks()
             throws JSONException, URISyntaxException, MalformedURLException, JsonProcessingException {
-        Integer recipeId = -1;
+        Integer recipeId = null;
 
         try {
             var updateRecipe = new URIBuilder("http://localhost")
@@ -583,7 +583,7 @@ class RecipeServiceAppTest {
             assertEquals(HttpStatus.OK, getRecipeResponse.getStatusCode());
             verifyRecipe(updatedRecipe, (LinkedHashMap<String, Object>) jsonPath.parse(getRecipeResponse.getBody()));
         } finally {
-            if (recipeId != -1) {
+            if (recipeId != null) {
                 restTemplate.exchange(RequestEntity.delete(String.format("http://localhost:%d/recipes/delete/%d",
                     recipeServicePort, recipeId)).build(), String.class);
 
@@ -604,11 +604,12 @@ class RecipeServiceAppTest {
             new org.json.JSONArray(listRecipesWithoutHyperLinksResponse.getBody()).length());
 
         // Check for list recipes with hyper-links
+        String listWithHypterLinksUrl = new URIBuilder(listRecipes)
+                .addParameter(INCLUDE_HYPER_LINKS_PARAM, "true")
+                .build().toString();
         var listRecipesWithHyperLinksResponse =
             restTemplate.exchange(RequestEntity
-                .get(new URIBuilder(listRecipes)
-                    .addParameter(INCLUDE_HYPER_LINKS_PARAM, "true")
-                    .build().toString()).build(), String.class);
+                .get(listWithHypterLinksUrl).build(), String.class);
 
         assertEquals(HttpStatus.OK, listRecipesWithHyperLinksResponse.getStatusCode());
         var listRecipesWithHyperLinksJson = jsonPath.parse(listRecipesWithHyperLinksResponse.getBody());

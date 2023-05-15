@@ -148,6 +148,7 @@ public class Recipe {
      */
     @Transient
     @ReadOnlyProperty
+    @Builder.Default
     private List<Ingredient> ingredients = Collections.emptyList();
 
     /**
@@ -155,5 +156,6 @@ public class Recipe {
      */
     @Transient
     @ReadOnlyProperty
+    @Builder.Default
     private List<Instruction> instructions = Collections.emptyList();
 }

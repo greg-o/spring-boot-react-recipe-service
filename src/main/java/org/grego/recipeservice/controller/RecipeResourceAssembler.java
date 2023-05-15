@@ -47,12 +47,12 @@ public class RecipeResourceAssembler implements SimpleRepresentationModelAssembl
     public void addLinks(final EntityModel<Recipe> resource) {
         resource.add(linkTo(
                 methodOn(RecipeController.class)
-                        .getRecipe(resource.getContent().getRecipeId(), false)).withSelfRel()
+                    .getRecipe(resource.getContent().getRecipeId(), false)).withSelfRel()
                 .andAffordance(afford(
-                        methodOn(RecipeController.class).deleteRecipe(resource.getContent().getRecipeId())))
+                    methodOn(RecipeController.class).deleteRecipe(resource.getContent().getRecipeId())))
                 .andAffordance(afford(
-                        methodOn(RecipeController.class)
-                                .updateRecipe(objectMapper.writeValueAsString(resource.getContent()), false))));
+                    methodOn(RecipeController.class)
+                    .updateRecipe(objectMapper.writeValueAsString(resource.getContent()), false))));
     }
 
     /**

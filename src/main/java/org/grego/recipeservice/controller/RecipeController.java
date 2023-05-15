@@ -11,9 +11,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import jakarta.json.stream.JsonGenerator;
+import org.grego.recipeservice.model.Ingredient;
+import org.grego.recipeservice.model.Instruction;
+import org.grego.recipeservice.model.QuantitySpecifier;
 import org.grego.recipeservice.service.IRecipeService;
 import org.grego.recipeservice.model.Recipe;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.Link;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import reactor.core.publisher.Mono;
 
 import java.io.StringWriter;
+import java.util.Collections;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.afford;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
@@ -38,9 +43,30 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
  * RecipeController defines the http methods supported by the Recipe Service.
  */
 @RestController
-@RequestMapping(path = "/recipes")
+@RequestMapping(
+    path = "/recipes",
+    produces = {
+        de.ingogriebsch.spring.hateoas.siren.MediaTypes.SIREN_JSON_VALUE,
+        org.springframework.http.MediaType.APPLICATION_JSON_VALUE
+    }
+)
 public class RecipeController {
 
+    /**
+     * Sample recipe for HATEOAS.
+     */
+    public static final Recipe SAMPLE_RECIPE = Recipe.builder()
+        .name("Sample Recipe")
+        .description("Sample description")
+        .ingredients(Collections.singletonList(Ingredient.builder()
+            .ingredient("Sample Ingredient")
+            .quantitySpecifier(QuantitySpecifier.Unspecified)
+            .quantity(1.0d)
+            .build()))
+        .instructions(Collections.singletonList(Instruction.builder()
+            .instruction("Sample Instruction")
+            .build()))
+        .build();
     /**
      * IRecipeService is for performing recipe service operations.
      */
@@ -82,11 +108,11 @@ public class RecipeController {
     @Timed
     @GetMapping(path = "/list",
             produces = {
-                    de.ingogriebsch.spring.hateoas.siren.MediaTypes.SIREN_JSON_VALUE,
-                    org.springframework.http.MediaType.APPLICATION_JSON_VALUE
+                de.ingogriebsch.spring.hateoas.siren.MediaTypes.SIREN_JSON_VALUE,
+                org.springframework.http.MediaType.APPLICATION_JSON_VALUE
             }
     )
-    public Mono<ResponseEntity<?>> listRecipes(
+    public  Mono<ResponseEntity<?>> listRecipes(
             @RequestParam(value = "page-number", required = false, defaultValue = "1")
             final long pageNumber,
             @RequestParam(value = "page-size", required = false, defaultValue = "${service.default_page_size:20}")
@@ -96,8 +122,8 @@ public class RecipeController {
 
         if (pageNumber < 1) {
             return Mono.just(ResponseEntity.badRequest()
-                    .contentType(MediaType.TEXT_PLAIN)
-                    .body(String.format("Pages begin at 1:  page-number = %d", pageNumber)));
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(String.format("Pages begin at 1:  page-number = %d", pageNumber)));
         }
 
         if (includeHyperLinks) {
@@ -125,7 +151,7 @@ public class RecipeController {
             @RequestParam(name = "include-hyper-links", required = false, defaultValue = "false")
             final Boolean includeHyperLinks) {
         Mono<ResponseEntity<?>> response = recipeService.getRecipeById(id)
-                .map(recipe -> getRecipeResponse(includeHyperLinks, recipe));
+            .map(recipe -> getRecipeResponse(includeHyperLinks, recipe));
 
         return response.switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
     }
@@ -151,7 +177,7 @@ public class RecipeController {
 
         try {
             return recipeService.addRecipe(objectMapper.readValue(recipe, Recipe.class))
-                    .map(savedRecipe -> getRecipeResponse(includeHyperLinks, savedRecipe));
+                .map(savedRecipe -> getRecipeResponse(includeHyperLinks, savedRecipe));
         } catch (JsonProcessingException e) {
             return Mono.just(ResponseEntity.internalServerError().build());
         }
@@ -196,7 +222,7 @@ public class RecipeController {
     )
     public Mono<ResponseEntity<?>> deleteRecipe(@PathVariable("id") final long id) {
         Mono<ResponseEntity<?>> response =  recipeService.deleteRecipeById(id)
-                .map(recipeId -> ResponseEntity.ok(String.format("Deleted recipe %d", recipeId)));
+            .map(recipeId -> ResponseEntity.ok(String.format("Deleted recipe %d", recipeId)));
 
         return response.switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
     }
@@ -208,9 +234,9 @@ public class RecipeController {
      */
     @Timed
     @GetMapping(path = "/search",
-            produces = {
-                    org.springframework.http.MediaType.APPLICATION_JSON_VALUE
-            }
+        produces = {
+            org.springframework.http.MediaType.APPLICATION_JSON_VALUE
+        }
     )
     public Mono<ResponseEntity<?>> searchRecipes(
             @RequestParam(value = "search-string", required = true)
@@ -225,25 +251,25 @@ public class RecipeController {
             }
 
             return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(writer.toString());
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(writer.toString());
         });
     }
 
     private Mono<ResponseEntity<?>> listRecipesWithHyperLinks(final Long pageNumber, final Integer pageSize) {
         return Mono.zip(recipeService.getAllRecipes(pageNumber, pageSize).collectList(),
-                recipeService.getRecipeCount()
+            recipeService.getRecipeCount()
         ).map(tuple -> {
             try {
                 var recipeCollectionModel = recipeResourceAssembler.toCollectionModel(tuple.getT1());
 
                 var metadata = new PagedModel.PageMetadata(tuple.getT1().size(), pageNumber, tuple.getT2(),
                     (tuple.getT2() / pageNumber));
-                var link = linkTo(
+                Link link = linkTo(
                     methodOn(RecipeController.class).listRecipes(pageNumber, pageSize, true))
                     .withSelfRel()
                     .andAffordance(afford(methodOn(RecipeController.class)
-                        .addRecipe(objectMapper.writeValueAsString(new Recipe()), false)));
+                        .addRecipe(objectMapper.writeValueAsString(SAMPLE_RECIPE), false)));
                 var pagedModel = PagedModel.of(recipeCollectionModel.getContent(), metadata, link);
 
                 return ResponseEntity.ok()
@@ -259,8 +285,8 @@ public class RecipeController {
         return recipeService.getAllRecipes(pageNumber, pageSize).collectList().map(recipes -> {
             try {
                 return ResponseEntity.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(objectMapper.writeValueAsString(recipes));
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(objectMapper.writeValueAsString(recipes));
             } catch (JsonProcessingException ex) {
                 return ResponseEntity.internalServerError().build();
             }
