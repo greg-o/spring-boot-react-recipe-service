@@ -155,13 +155,13 @@ public class RecipeControllerTest {
         var response = recipeController.listRecipes(INVALID_PAGE_NUMBER, PAGE_SIZE_10, DO_NOT_INCLUDE_HYPER_LINKS);
 
         StepVerifier.create(response)
-                .expectNextMatches(responseEntity -> {
-                    return
-                            statusCodeAndContentTypeAreExpected(HttpStatus.BAD_REQUEST,
-                                    MediaType.TEXT_PLAIN_VALUE, responseEntity)
-                                    && responseEntity.getBody().toString().startsWith("Pages begin at 1:  page-number = ");
-                })
-                .verifyComplete();
+            .expectNextMatches(responseEntity -> {
+                return
+                    statusCodeAndContentTypeAreExpected(HttpStatus.BAD_REQUEST,
+                        MediaType.TEXT_PLAIN_VALUE, responseEntity)
+                        && responseEntity.getBody().toString().startsWith("Pages begin at 1:  page-number = ");
+            })
+            .verifyComplete();
 
         verifyNoInteractions(recipeService, recipeResourceAssembler);
     }
@@ -179,22 +179,22 @@ public class RecipeControllerTest {
         when(recipeService.getAllRecipes(anyLong(), anyInt())).thenReturn(recipeFlux);
         when(recipeService.getRecipeCount()).thenReturn(Mono.just(0L));
         when(recipeResourceAssembler.toCollectionModel(any(Iterable.class)))
-                .thenAnswer(invocation -> assembler.toCollectionModel(invocation.getArgument(0)));
+            .thenAnswer(invocation -> assembler.toCollectionModel(invocation.getArgument(0)));
 
         var response = recipeController.listRecipes(PAGE_NUMBER_1, PAGE_SIZE_10, INCLUDE_HYPER_LINKS);
 
         StepVerifier.create(response)
-                .expectNextMatches(responseEntity -> {
-                    if (!statusCodeAndContentTypeAreExpected(HttpStatus.OK,
-                            de.ingogriebsch.spring.hateoas.siren.MediaTypes.SIREN_JSON_VALUE, responseEntity)) {
-                        return false;
-                    }
+            .expectNextMatches(responseEntity -> {
+                if (!statusCodeAndContentTypeAreExpected(HttpStatus.OK,
+                        de.ingogriebsch.spring.hateoas.siren.MediaTypes.SIREN_JSON_VALUE, responseEntity)) {
+                    return false;
+                }
 
-                    var json = jsonPath.parse(responseEntity.getBody().toString());
-                    return (0 == (Integer) JsonPath.read(json, "$.page.size")
-                            && ((JSONArray) JsonPath.read(json, "$.content")).isEmpty());
-                })
-                .verifyComplete();
+                var json = jsonPath.parse(responseEntity.getBody().toString());
+                return (0 == (Integer) JsonPath.read(json, "$.page.size")
+                    && ((JSONArray) JsonPath.read(json, "$.content")).isEmpty());
+            })
+            .verifyComplete();
 
         verify(recipeService, times(1)).getAllRecipes(anyLong(), anyInt());
         verify(recipeService, times(1)).getRecipeCount();
@@ -217,15 +217,15 @@ public class RecipeControllerTest {
         var response = recipeController.listRecipes(PAGE_NUMBER_1, PAGE_SIZE_10, DO_NOT_INCLUDE_HYPER_LINKS);
 
         StepVerifier.create(response)
-                .expectNextMatches(responseEntity -> {
-                    if (!statusCodeAndContentTypeAreExpected(HttpStatus.OK,
-                            MediaType.APPLICATION_JSON_VALUE, responseEntity)) {
-                        return false;
-                    }
+            .expectNextMatches(responseEntity -> {
+                if (!statusCodeAndContentTypeAreExpected(HttpStatus.OK,
+                        MediaType.APPLICATION_JSON_VALUE, responseEntity)) {
+                    return false;
+                }
 
-                    return ((JSONArray) jsonPath.parse(responseEntity.getBody().toString())).isEmpty();
-                })
-                .verifyComplete();
+                return ((JSONArray) jsonPath.parse(responseEntity.getBody().toString())).isEmpty();
+            })
+            .verifyComplete();
 
         verify(recipeService, times(1)).getAllRecipes(anyLong(), anyInt());
         verifyNoMoreInteractions(recipeService, recipeResourceAssembler);
@@ -277,7 +277,6 @@ public class RecipeControllerTest {
 
         var recipes = Instancio.ofList(Recipe.class).size(1).create();
         Flux<Recipe> recipeFlux = Flux.fromIterable(recipes);
-        RecipeResourceAssembler assembler = new RecipeResourceAssembler(objectMapper);
 
         when(recipeService.getAllRecipes(anyLong(), anyInt())).thenReturn(recipeFlux);
 
@@ -344,7 +343,6 @@ public class RecipeControllerTest {
 
         var recipes = Instancio.ofList(Recipe.class).size(new Random().nextInt(PAGE_SIZE_10 - 2) + 2).create();
         Flux<Recipe> recipeFlux = Flux.fromIterable(recipes);
-        RecipeResourceAssembler assembler = new RecipeResourceAssembler(objectMapper);
 
         when(recipeService.getAllRecipes(anyLong(), anyInt())).thenReturn(recipeFlux);
 
@@ -405,7 +403,6 @@ public class RecipeControllerTest {
 
         var recipes = Instancio.ofList(Recipe.class).size(1).create();
         Flux<Recipe> recipeFlux = Flux.fromIterable(recipes);
-        RecipeResourceAssembler assembler = new RecipeResourceAssembler(objectMapper);
 
         when(recipeService.getAllRecipes(anyLong(), anyInt())).thenReturn(recipeFlux);
         doThrow(JsonProcessingException.class).when(objectMapper).writeValueAsString(any());
@@ -511,7 +508,6 @@ public class RecipeControllerTest {
 
         var recipe = Instancio.create(Recipe.class);
         Mono<Recipe> recipeMono = Mono.just(recipe);
-        RecipeResourceAssembler assembler = new RecipeResourceAssembler(objectMapper);
 
         when(recipeService.getRecipeById(anyLong())).thenReturn(recipeMono);
 
@@ -626,7 +622,6 @@ public class RecipeControllerTest {
     @Test
     void testAddRecipeWithoutHyperLinks() throws Exception {
         var recipe = Instancio.create(Recipe.class);
-        RecipeResourceAssembler assembler = new RecipeResourceAssembler(objectMapper);
 
         when(recipeService.addRecipe(any(Recipe.class))).thenReturn(Mono.just(recipe));
 

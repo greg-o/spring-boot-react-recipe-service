@@ -12,7 +12,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
-import org.grego.recipeservice.model.Ingredient;
 import org.grego.recipeservice.model.QuantitySpecifier;
 
 /**
@@ -49,18 +48,4 @@ public class IngredientDoc extends ElasticsearchDoc {
      * The ingredient.
      */
     private String ingredient;
-
-    /**
-     * Create an IngredientDoc from an ingredient.
-     * @param ingredient
-     * @return IngredientDoc used in the search engine.
-     */
-    public static IngredientDoc create(final Ingredient ingredient) {
-        return IngredientDoc.builder()
-                .ingredientId(ingredient.getIngredientId())
-                .ingredientNumber(ingredient.getIngredientNumber())
-                .quantity(ingredient.getQuantity())
-                .ingredient(ingredient.getIngredient())
-                .build();
-    }
 }

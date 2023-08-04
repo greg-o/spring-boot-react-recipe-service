@@ -5,8 +5,6 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.grego.recipeservice.model.Instruction;
-import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestInstance;
@@ -55,7 +53,5 @@ public class InstructionDocTest {
                 .toString();
 
         assertEquals(allArgsConstInstructionDoc.toString(), builderInstructionDoc.toString());
-
-        InstructionDoc.create(Instancio.create(Instruction.class));
     }
 }

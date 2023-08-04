@@ -11,11 +11,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import org.grego.recipeservice.document.InstructionDoc;
+import org.grego.recipeservice.mapping.InstructionMapper;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestInstance;
+import org.mapstruct.factory.Mappers;
 import org.testcontainers.shaded.org.apache.commons.lang3.RandomStringUtils;
 
 import java.util.Collections;
@@ -32,6 +33,11 @@ public class InstructionTest {
      * Length of the instruction.
      */
     public static final int INSTRUCTION_LENGTH = 30;
+
+    /**
+     * Mapper for converting Instructions into InstructionDocs and vice versa.
+     */
+    private InstructionMapper instructionMapper = Mappers.getMapper(InstructionMapper.class);
 
     /**
      * Test Instruction class.
@@ -75,6 +81,6 @@ public class InstructionTest {
         assertEquals(allArgsConstInstruction, fromRowInstruction);
         assertNull(Instruction.fromRow(Collections.emptyMap()));
         assertNotEquals(allArgsConstInstruction, Instancio.create(Instruction.class));
-        assertNotEquals(allArgsConstInstruction, InstructionDoc.create(allArgsConstInstruction));
+        assertNotEquals(allArgsConstInstruction, instructionMapper.toDoc(allArgsConstInstruction));
     }
 }

@@ -11,11 +11,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import org.grego.recipeservice.document.IngredientDoc;
+import org.grego.recipeservice.mapping.IngredientMapper;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestInstance;
+import org.mapstruct.factory.Mappers;
 import org.testcontainers.shaded.org.apache.commons.lang3.RandomStringUtils;
 
 import java.util.Collections;
@@ -33,6 +34,12 @@ public class IngredientTest {
      * Length of the ingredient.
      */
     public static final int INGREDIENT_LENGTH = 10;
+
+    /**
+     * Mapper for converting Ingredients to IngredientDocs and vice versa.
+     */
+    private IngredientMapper ingredientMapper = Mappers.getMapper(IngredientMapper.class);
+
 
     /**
      * Test Ingredient class.
@@ -85,6 +92,6 @@ public class IngredientTest {
         assertEquals(allArgsConstIngredient, fromRowIngredient);
         assertNull(Ingredient.fromRow(Collections.emptyMap()));
         assertNotEquals(allArgsConstIngredient, Instancio.create(Ingredient.class));
-        assertNotEquals(allArgsConstIngredient, IngredientDoc.create(allArgsConstIngredient));
+        assertNotEquals(allArgsConstIngredient, ingredientMapper.toDoc(allArgsConstIngredient));
     }
 }

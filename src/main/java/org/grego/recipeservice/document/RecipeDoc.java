@@ -12,17 +12,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
-import org.grego.recipeservice.model.Recipe;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
-import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Elasticsearch document for recipe.
@@ -79,22 +76,4 @@ public class RecipeDoc extends ElasticsearchDoc {
     @Field(type = FieldType.Nested, includeInParent = true)
     @Builder.Default
     private List<InstructionDoc> instructions = Collections.emptyList();
-
-    /**
-     * Create a RecipeDoc from a Recipe.
-     * @param recipe
-     * @return The recipe document used in the search engine.
-     */
-    public static RecipeDoc create(final Recipe recipe) {
-        return RecipeDoc.builder()
-                .id(recipe.getRecipeId())
-                .name(recipe.getName())
-                .variation(recipe.getVariation())
-                .description(recipe.getDescription())
-                .creationDateTime(Date.from(recipe.getCreationDateTime().toInstant(ZoneOffset.UTC)))
-                .lastModifiedDateTime(Date.from(recipe.getLastModifiedDateTime().toInstant(ZoneOffset.UTC)))
-                .ingredients(recipe.getIngredients().stream().map(IngredientDoc::create).collect(Collectors.toList()))
-                .instructions(recipe.getInstructions().stream().map(InstructionDoc::create).collect(Collectors.toList()))
-                .build();
-    }
 }

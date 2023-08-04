@@ -7,6 +7,7 @@ import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.grego.recipeservice.document.RecipeDoc;
+import org.grego.recipeservice.mapping.RecipeMapper;
 import org.grego.recipeservice.model.Ingredient;
 import org.grego.recipeservice.model.Instruction;
 import org.grego.recipeservice.model.Recipe;
@@ -19,8 +20,10 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.runner.RunWith;
+import org.mapstruct.factory.Mappers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient;
@@ -184,6 +187,12 @@ public class RecipeServiceTest {
      */
     @Mock
     private FetchSpec<Map<String, Object>> instructionsFetchSpec;
+
+    /**
+     * Recipe mapper for creating RecipeDoc objects from Recipe objects.
+     */
+    @Spy
+    private RecipeMapper recipeMapper = Mappers.getMapper(RecipeMapper.class);
 
     /**
      * To convert objects to JSON and JSON to maps.

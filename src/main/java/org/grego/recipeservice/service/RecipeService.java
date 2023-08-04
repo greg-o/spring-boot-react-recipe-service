@@ -13,6 +13,7 @@ import co.elastic.clients.elasticsearch.core.search.ResponseBody;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.grego.recipeservice.document.RecipeDoc;
+import org.grego.recipeservice.mapping.RecipeMapper;
 import org.grego.recipeservice.repository.IngredientRepository;
 import org.grego.recipeservice.repository.InstructionRepository;
 import org.grego.recipeservice.repository.RecipeRepository;
@@ -193,6 +194,12 @@ public class RecipeService implements IRecipeService {
     @Autowired
     private DatabaseClient client;
 
+    /**
+     * Mapper to convert Recipe to RecipeDoc.
+     */
+    @Autowired
+    private RecipeMapper recipeMapper;
+
     private static Function<Tuple3<Recipe, List<Ingredient>, List<Instruction>>,
             Recipe> mergeRecipeWithIngredientsAndInstructions() {
         return tuple -> {
@@ -283,7 +290,7 @@ public class RecipeService implements IRecipeService {
                     recipe.setVariation(nextVariation);
 
                     return saveRecipe(recipe).flatMap(savedRecipe ->
-                            recipeSearchRepository.save(RecipeDoc.create(savedRecipe))
+                            recipeSearchRepository.save(recipeMapper.toDoc(savedRecipe))
                                     .then(Mono.just(savedRecipe)));
                 });
     }
@@ -355,7 +362,7 @@ public class RecipeService implements IRecipeService {
                             updateInstructions(instructionsToUpdate).collectList(),
                             saveIngredients(recipe.getRecipeId(), ingredientsToAdd).collectList(),
                             saveInstructions(recipe.getRecipeId(), instructionsToAdd).collectList()
-                    ).map(tuple7 -> recipeSearchRepository.save(RecipeDoc.create(recipe)).then())
+                    ).map(tuple7 -> recipeSearchRepository.save(recipeMapper.toDoc(recipe)).then())
                     .then(Mono.just(recipe));
                 });
     }

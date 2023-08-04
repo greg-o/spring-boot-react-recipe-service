@@ -6,9 +6,7 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.grego.recipeservice.model.Ingredient;
 import org.grego.recipeservice.model.QuantitySpecifier;
-import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestInstance;
@@ -64,7 +62,5 @@ public class IngredientDocTest {
             .toString();
 
         assertEquals(allArgsConstIngredientDoc.toString(), builderIngredientDoc.toString());
-
-        IngredientDoc.create(Instancio.create(Ingredient.class));
     }
 }

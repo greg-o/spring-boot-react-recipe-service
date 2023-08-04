@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.code.beanmatchers.BeanMatchers;
 import com.google.code.beanmatchers.ValueGenerator;
-import org.grego.recipeservice.model.Recipe;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeAll;
@@ -94,7 +93,5 @@ public class RecipeDocTest {
                 .toString();
 
         assertEquals(allArgsConstrRecipeDoc.toString(), builderRecipeDoc.toString());
-
-        RecipeDoc.create(Instancio.create(Recipe.class));
     }
 }
