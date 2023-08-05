@@ -16,39 +16,38 @@ import org.mapstruct.factory.Mappers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Test functionality of InstructionMapper class.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Tag("UnitTests")
-public class InstructionMapperTest {
+class InstructionMapperTest {
 
     /**
      * InstructionMapper for mapping Instruction to InstructionDoc and vice versa.
      */
-    private InstructionMapper instructionMapper = Mappers.getMapper(InstructionMapper.class);
+    private final InstructionMapper instructionMapper = Mappers.getMapper(InstructionMapper.class);
 
     /**
      * Testing toDoc method.
      */
     @Test
-    public void testToDoc() {
+    void testToDoc() {
         var instruction = Instancio.create(Instruction.class);
 
         InstructionDoc instructionDoc = instructionMapper.toDoc(instruction);
 
         assertEquals(instructionDoc.getInstructionId(), instruction.getInstructionId());
         assertEquals(instructionDoc.getInstructionNumber(), instruction.getInstructionNumber());
-        assertTrue(instructionDoc.getInstruction().equals(instruction.getInstruction()));
+        assertEquals(instructionDoc.getInstruction(), instruction.getInstruction());
     }
 
     /**
      * Testing toDoc method with null Recipe.
      */
     @Test
-    public void testToDocNullRecipe() {
+    void testToDocNullRecipe() {
         assertNull(instructionMapper.toDoc(null));
     }
 
@@ -56,21 +55,21 @@ public class InstructionMapperTest {
      * Test toModelMethod.
      */
     @Test
-    public void testToModel() {
+    void testToModel() {
         var instructionDoc = Instancio.create(InstructionDoc.class);
 
         Instruction instruction = instructionMapper.toModel(instructionDoc);
 
         assertEquals(instruction.getInstructionId(), instructionDoc.getInstructionId());
         assertEquals(instruction.getInstructionNumber(), instructionDoc.getInstructionNumber());
-        assertTrue(instruction.getInstruction().equals(instructionDoc.getInstruction()));
+        assertEquals(instruction.getInstruction(), instructionDoc.getInstruction());
     }
 
     /**
      * Testing toModel method with null Recipe.
      */
     @Test
-    public void testToModelNullRecipeDoc() {
+    void testToModelNullRecipeDoc() {
         assertNull(instructionMapper.toModel(null));
     }
 }

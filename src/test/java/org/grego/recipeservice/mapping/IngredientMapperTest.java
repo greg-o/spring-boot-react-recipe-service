@@ -34,13 +34,13 @@ public class IngredientMapperTest {
     /**
      * IngredientMapper for mapping Ingredient to IngredientDoc and vice versa.
      */
-    private IngredientMapper ingredientMapper = Mappers.getMapper(IngredientMapper.class);
+    private final IngredientMapper ingredientMapper = Mappers.getMapper(IngredientMapper.class);
 
     /**
      * Testing toDoc method.
      */
     @Test
-    public void testToDoc() {
+    void testToDoc() {
         var ingredient = Instancio.create(Ingredient.class);
 
         IngredientDoc ingredientDoc = ingredientMapper.toDoc(ingredient);
@@ -49,14 +49,14 @@ public class IngredientMapperTest {
         assertEquals(ingredientDoc.getIngredientNumber(), ingredient.getIngredientNumber());
         assertEquals(ingredientDoc.getQuantitySpecifier(), ingredient.getQuantitySpecifier());
         assertTrue(Math.abs(ingredientDoc.getQuantity() - ingredient.getQuantity()) < EPSILON);
-        assertTrue(ingredientDoc.getIngredient().equals(ingredient.getIngredient()));
+        assertEquals(ingredientDoc.getIngredient(), ingredient.getIngredient());
     }
 
     /**
      * Testing toDoc method with null Recipe.
      */
     @Test
-    public void testToDocNullRecipe() {
+    void testToDocNullRecipe() {
         assertNull(ingredientMapper.toDoc(null));
     }
 
@@ -64,7 +64,7 @@ public class IngredientMapperTest {
      * Test toModelMethod.
      */
     @Test
-    public void testToModel() {
+    void testToModel() {
         var ingredientDoc = Instancio.create(IngredientDoc.class);
 
         Ingredient ingredient = ingredientMapper.toModel(ingredientDoc);
@@ -73,14 +73,14 @@ public class IngredientMapperTest {
         assertEquals(ingredient.getIngredientNumber(), ingredientDoc.getIngredientNumber());
         assertEquals(ingredient.getQuantitySpecifier(), ingredientDoc.getQuantitySpecifier());
         assertTrue(Math.abs(ingredient.getQuantity() - ingredientDoc.getQuantity()) < EPSILON);
-        assertTrue(ingredient.getIngredient().equals(ingredientDoc.getIngredient()));
+        assertEquals(ingredient.getIngredient(), ingredientDoc.getIngredient());
     }
 
     /**
      * Testing toModel method with null Recipe.
      */
     @Test
-    public void testToModelNullRecipeDoc() {
+    void testToModelNullRecipeDoc() {
         assertNull(ingredientMapper.toModel(null));
     }
 }
